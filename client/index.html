@@ -6,11 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover"
     />
-    <title>واصل - توصيل سريع للخضار والفواكه</title>
-    <meta name="description" content="أفضل الخضار والفواكه الطازجة توصل لبابك - واصل" />
+    <title>طمطوم - Tam Tom | توصيل سريع للخضار والفواكه</title>
+    <meta name="description" content="أفضل الخضار والفواكه الطازجة توصل لبابك - طمطوم Tam Tom" />
     <!-- ✅ توحيد لون الثيم مع لون الشريط العلوي للتطبيق -->
-    <meta name="theme-color" content="#F97316" />
-    <meta name="msapplication-navbutton-color" content="#F97316" />
+    <meta name="theme-color" content="#E53225" />
+    <meta name="msapplication-navbutton-color" content="#E53225" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -18,7 +18,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="واصل" />
+    <meta name="apple-mobile-web-app-title" content="طمطوم" />
     <!-- ✅ اختيار ملف PWA المناسب ديناميكياً حسب نوع التطبيق (عميل/سائق/إدارة) -->
     <script>
       (function () {
@@ -27,12 +27,12 @@
         var titleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
         if (path.indexOf('/admin') === 0) {
           manifestUrl = '/manifest-admin.json';
-          if (titleMeta) titleMeta.setAttribute('content', 'لوحة التحكم - واصل');
-          document.title = 'لوحة التحكم - واصل';
+          if (titleMeta) titleMeta.setAttribute('content', 'لوحة التحكم - طمطوم');
+          document.title = 'لوحة التحكم - طمطوم';
         } else if (path.indexOf('/driver') === 0) {
           manifestUrl = '/manifest-driver.json';
-          if (titleMeta) titleMeta.setAttribute('content', 'السائق - واصل');
-          document.title = 'السائق - واصل';
+          if (titleMeta) titleMeta.setAttribute('content', 'السائق - طمطوم');
+          document.title = 'السائق - طمطوم';
         }
         var link = document.createElement('link');
         link.rel = 'manifest';
