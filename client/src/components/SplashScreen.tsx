@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { prefetchBootstrap } from '@/lib/bootstrap';
-import waselLogo from '@assets/wasel-logo.png';
+const tamtomLogo = '/tamtom-logo.png';
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -80,9 +80,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     );
   }
 
-  const logoUrl = getSetting('logo_url') || waselLogo;
-  const splashTitle = getSetting('splash_title') || 'واصل';
-  const splashSubtitle = getSetting('splash_subtitle') || 'نوصل لك بكل سرعة وأمان';
+  const logoUrl = getSetting('splash_image_url') || getSetting('logo_url') || tamtomLogo;
+  const splashTitle = getSetting('splash_title') || 'طمطوم';
+  const splashSubtitle = getSetting('splash_subtitle') || 'أفضل المنتجات الطازجة توصل لبابك';
   const buttonText = getSetting('splash_button_text') || 'ابدأ الآن';
 
   const handleStart = () => {
@@ -243,7 +243,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
           <div className="flex items-center justify-center gap-2">
             <span className="h-px w-10 bg-gradient-to-l from-transparent to-[#F5A623]" />
-            <p className="text-[#F5A623] text-xs md:text-sm font-bold tracking-[0.4em]">WASEL</p>
+            <p className="text-[#F5A623] text-xs md:text-sm font-bold tracking-[0.4em]">TAM TOM</p>
             <span className="h-px w-10 bg-gradient-to-r from-transparent to-[#F5A623]" />
           </div>
           <p className="text-base md:text-lg font-medium text-white/75 leading-relaxed max-w-[320px] md:max-w-md mx-auto pt-2">
@@ -281,7 +281,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
             )}
           </Button>
           <p className="text-center text-white/40 text-xs mt-4 font-medium tracking-wide">
-            © 2026 واصل · جميع الحقوق محفوظة
+            © 2026 طمطوم · جميع الحقوق محفوظة
           </p>
         </div>
       </div>
