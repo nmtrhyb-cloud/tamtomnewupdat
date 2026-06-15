@@ -5,6 +5,25 @@ import { dbStorage } from '../db';
 import { adminUsers, drivers, users, insertUserSchema } from '@shared/schema';
 import { eq, or, sql } from 'drizzle-orm';
 
+// ===== نظام OTP في الذاكرة =====
+interface OtpEntry {
+  otp: string;
+  expiresAt: number;
+  phone: string;
+}
+const otpStore = new Map<string, OtpEntry>();
+
+// أرقام الاختبار - يتم إرجاع رمز OTP في الاستجابة لها
+const TEST_PHONES = ['5543323233', '55423455555', '05543323233', '055423455555'];
+
+function isTestPhone(phone: string): boolean {
+  return TEST_PHONES.some(t => phone === t || phone.endsWith(t));
+}
+
+function generateOtp(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
 const router = express.Router();
 
 // فحص حالة الإعداد الأولي - هل توجد حسابات في قاعدة البيانات؟
@@ -255,10 +274,77 @@ router.post('/validate', async (req, res) => {
   }
 });
 
+// ===== إرسال رمز OTP =====
+router.post('/send-otp', async (req, res) => {
+  try {
+    let { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'رقم الهاتف مطلوب' });
+    }
+
+    phone = String(phone).trim().replace(/\s+/g, '');
+
+    const otp = generateOtp();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 دقائق
+    otpStore.set(phone, { otp, expiresAt, phone });
+
+    console.log(`📱 OTP للهاتف ${phone}: ${otp}`);
+
+    const isTest = isTestPhone(phone);
+    if (isTest) {
+      return res.json({
+        success: true,
+        message: 'تم إرسال رمز التحقق (رقم اختبار)',
+        testOtp: otp,
+      });
+    }
+
+    // للأرقام الحقيقية: هنا يتم إرسال SMS (placeholder)
+    res.json({
+      success: true,
+      message: 'تم إرسال رمز التحقق إلى هاتفك',
+    });
+  } catch (error) {
+    console.error('خطأ في إرسال OTP:', error);
+    res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+  }
+});
+
+// ===== التحقق من رمز OTP =====
+router.post('/verify-otp', async (req, res) => {
+  try {
+    let { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ success: false, message: 'رقم الهاتف والرمز مطلوبان' });
+    }
+
+    phone = String(phone).trim().replace(/\s+/g, '');
+    otp = String(otp).trim();
+
+    const entry = otpStore.get(phone);
+    if (!entry) {
+      return res.status(400).json({ success: false, message: 'لم يتم إرسال رمز تحقق لهذا الرقم' });
+    }
+    if (Date.now() > entry.expiresAt) {
+      otpStore.delete(phone);
+      return res.status(400).json({ success: false, message: 'انتهت صلاحية رمز التحقق، أعد الإرسال' });
+    }
+    if (entry.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'رمز التحقق غير صحيح' });
+    }
+
+    res.json({ success: true, message: 'تم التحقق بنجاح' });
+  } catch (error) {
+    console.error('خطأ في التحقق من OTP:', error);
+    res.status(500).json({ success: false, message: 'حدث خطأ في الخادم' });
+  }
+});
+
 // تسجيل عميل جديد
 router.post('/register', async (req, res) => {
   try {
-    const validatedData = insertUserSchema.parse(req.body);
+    const { otp: otpCode, ...bodyWithoutOtp } = req.body;
+    const validatedData = insertUserSchema.parse(bodyWithoutOtp);
 
     // تطبيع المدخلات: إزالة الفراغات الزائدة من اسم المستخدم/الهاتف/البريد
     const arabicToLatinDigits = (s: string) =>
@@ -270,15 +356,46 @@ router.post('/register', async (req, res) => {
     }
     if (validatedData.phone) {
       const rawPhone = arabicToLatinDigits(String(validatedData.phone).trim()).replace(/\s+/g, '');
-      // تطبيع رقم الهاتف السعودي
-      const normalizeSaudiPhone = (p: string): string | null => {
+
+      // التحقق من صحة رمز OTP قبل التسجيل
+      if (!otpCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'رمز التحقق مطلوب. يرجى إرسال الرمز أولاً.',
+        });
+      }
+      const otpEntry = otpStore.get(rawPhone);
+      if (!otpEntry) {
+        return res.status(400).json({
+          success: false,
+          message: 'لم يتم إرسال رمز تحقق لهذا الرقم. يرجى إعادة الإرسال.',
+        });
+      }
+      if (Date.now() > otpEntry.expiresAt) {
+        otpStore.delete(rawPhone);
+        return res.status(400).json({
+          success: false,
+          message: 'انتهت صلاحية رمز التحقق. يرجى إعادة الإرسال.',
+        });
+      }
+      if (otpEntry.otp !== String(otpCode).trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'رمز التحقق غير صحيح.',
+        });
+      }
+      otpStore.delete(rawPhone);
+
+      // تطبيع رقم الهاتف السعودي (أرقام الاختبار مقبولة كما هي)
+      const normalizeSaudiPhone = (p: string): string => {
+        if (isTestPhone(p)) return p;
         if (/^05[0-9]{8}$/.test(p)) return p;
         if (/^5[0-9]{8}$/.test(p)) return '0' + p;
         if (/^(\+966|00966)5[0-9]{8}$/.test(p)) return '0' + p.replace(/^(\+966|00966)/, '');
-        return null;
+        return p;
       };
       const normalized = normalizeSaudiPhone(rawPhone);
-      if (!normalized) {
+      if (!isTestPhone(rawPhone) && !/^05[0-9]{8}$/.test(normalized)) {
         return res.status(400).json({
           success: false,
           message: 'رقم الهاتف يجب أن يكون رقماً سعودياً صحيحاً (مثال: 0512345678)',
