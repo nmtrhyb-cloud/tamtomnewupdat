@@ -1981,7 +1981,7 @@ router.get("/users", async (req, res) => {
 router.patch("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, isActive } = req.body;
+    const { name, email, phone, role, isActive, password } = req.body;
     
     // تحديد الجدول بناءً على الدور الجديد أو الحالي
     let targetTable = 'customers';
@@ -2013,17 +2013,19 @@ router.patch("/users/:id", async (req, res) => {
       return res.status(404).json({ error: "المستخدم غير موجود" });
     }
 
-    // إعداد البيانات للتحديث
-    const updateData: any = {
-      updatedAt: new Date()
-    };
+    // إعداد البيانات للتحديث (بدون updatedAt - جدول users لا يحتوي على هذا الحقل)
+    const updateData: any = {};
     
     if (name) updateData.name = name;
-    if (email) updateData.email = email;
+    if (email !== undefined) updateData.email = email;
     if (phone) updateData.phone = phone;
     if (isActive !== undefined) updateData.isActive = isActive;
     
-    // تم حذف منطق كلمة المرور
+    // تشفير كلمة المرور إذا تم إرسالها
+    if (password && password.trim()) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password.trim(), salt);
+    }
 
     let updatedUser;
     

@@ -290,19 +290,14 @@ router.post('/send-otp', async (req, res) => {
 
     console.log(`📱 OTP للهاتف ${phone}: ${otp}`);
 
-    const isTest = isTestPhone(phone);
-    if (isTest) {
-      return res.json({
-        success: true,
-        message: 'تم إرسال رمز التحقق (رقم اختبار)',
-        testOtp: otp,
-      });
-    }
-
-    // للأرقام الحقيقية: هنا يتم إرسال SMS (placeholder)
+    // إرجاع رمز OTP دائماً (لا توجد خدمة SMS مُفعَّلة حالياً)
+    // للأرقام الحقيقية: عند تفعيل خدمة SMS، احذف testOtp من الاستجابة
     res.json({
       success: true,
-      message: 'تم إرسال رمز التحقق إلى هاتفك',
+      message: isTestPhone(phone)
+        ? 'تم إرسال رمز التحقق (رقم اختبار)'
+        : 'تم إرسال رمز التحقق',
+      testOtp: otp,
     });
   } catch (error) {
     console.error('خطأ في إرسال OTP:', error);
