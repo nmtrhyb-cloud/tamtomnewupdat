@@ -2,7 +2,6 @@ import { Switch, Route, useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDrivers from "./AdminDrivers";
 import AdminOrders from "./AdminOrders";
-import AdminRestaurants from "./AdminRestaurants";
 import AdminMenuItems from "./AdminMenuItems";
 import AdminOffers from "./AdminOffers";
 import AdminCategories from "./AdminCategories";
@@ -17,15 +16,12 @@ import AdminDeliveryFees from "./admin/AdminDeliveryFees";
 import AdminBackup from "./admin/AdminBackup";
 import AdminCoupons from "./admin/AdminCoupons";
 import AdminPaymentMethods from "./admin/AdminPaymentMethods";
-import AdminRestaurantAccounts from "./admin/AdminRestaurantAccounts";
-import RestaurantStatementPage from "./admin/RestaurantStatementPage";
 import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
 import AdminWasalniRequests from "./admin/AdminWasalniRequests";
 import AdminDriverTracking from "./admin/AdminDriverTracking";
 import AdminBusinessHours from "./AdminBusinessHours";
 import AdminSpecialOffers from "./AdminSpecialOffers";
 import AdminSettings from "./AdminSettings";
-import RestaurantSections from "./RestaurantSections";
 import RatingsManagement from "./RatingsManagement";
 import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
@@ -44,7 +40,6 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/admin/orders" component={AdminOrders} />
-        <Route path="/admin/restaurants" component={AdminRestaurants} />
         <Route path="/admin/menu-items" component={AdminMenuItems} />
         <Route path="/admin/drivers" component={AdminDrivers} />
         <Route path="/admin/driver-tracking" component={AdminDriverTracking} />
@@ -64,9 +59,6 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/backup" component={AdminBackup} />
         <Route path="/admin/coupons" component={AdminCoupons} />
         <Route path="/admin/payment-methods" component={AdminPaymentMethods} />
-        <Route path="/admin/restaurant-accounts" component={AdminRestaurantAccounts} />
-        <Route path="/admin/restaurant-accounts/:restaurantId/statement" component={RestaurantStatementPage} />
-        <Route path="/admin/restaurant-sections" component={RestaurantSections} />
         <Route path="/admin/business-hours" component={AdminBusinessHours} />
         <Route path="/admin/notifications" component={AdminFlutterNotifications} />
         <Route path="/admin/wasalni" component={AdminWasalniRequests} />

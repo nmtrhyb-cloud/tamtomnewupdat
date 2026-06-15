@@ -12,10 +12,11 @@ import {
   Sparkles,
   Star,
   Package,
+  Plus,
 } from 'lucide-react';
-import TimingBanner from '@/components/TimingBanner';
 import MenuItemCard from '@/components/MenuItemCard';
 import { useUiSettings } from '@/context/UiSettingsContext';
+import { useAuth } from '@/context/AuthContext';
 import type { Category, SpecialOffer, MenuItem } from '@shared/schema';
 import { getAppStatus } from '@/utils/restaurantHours';
 
@@ -23,6 +24,8 @@ export default function HomePage() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const { getSetting } = useUiSettings();
+  const { user } = useAuth();
+  const isAdmin = user?.userType === 'admin';
 
   const [offerIndex, setOfferIndex] = useState(0);
   const sliderTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -133,9 +136,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
-      {/* Timing Banner */}
-      {showSection('show_hero_section') && <TimingBanner />}
 
       {/* ── Categories ─────────────────────────────────────── */}
       {showSection('show_categories') && (
@@ -414,6 +414,17 @@ export default function HomePage() {
           </>
         )}
       </div>
+
+      {/* زر إضافة منتج للمدير */}
+      {isAdmin && (
+        <button
+          onClick={() => setLocation('/admin/menu-items')}
+          className="fixed bottom-24 left-4 z-50 w-14 h-14 rounded-full bg-[#E53225] text-white shadow-2xl flex items-center justify-center hover:bg-[#c02a1f] active:scale-95 transition-all"
+          title="إضافة منتج جديد"
+        >
+          <Plus className="h-7 w-7" />
+        </button>
+      )}
     </div>
   );
 }

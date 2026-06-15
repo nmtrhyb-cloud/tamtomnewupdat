@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,9 +32,12 @@ import {
   ShieldCheck,
   Layers,
   MapPin,
-  Info
+  Info,
+  Map as MapIcon,
+  Crosshair,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import 'leaflet/dist/leaflet.css';
 
 interface DeliveryZone {
   id: string;
@@ -192,6 +195,12 @@ export default function AdminDeliveryFees() {
   // حالة موقع متجر طمطوم
   const [storeLat, setStoreLat] = useState('15.3694');
   const [storeLng, setStoreLng] = useState('44.1910');
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [mapPickedLat, setMapPickedLat] = useState('');
+  const [mapPickedLng, setMapPickedLng] = useState('');
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const leafletMapRef = useRef<any>(null);
+  const leafletMarkerRef = useRef<any>(null);
 
   // جلب موقع المتجر من الإعدادات
   const { data: uiSettings } = useQuery<any[]>({
@@ -210,6 +219,85 @@ export default function AdminDeliveryFees() {
       if (lng) setStoreLng(lng);
     }
   }, [uiSettings]);
+
+  // تهيئة خريطة Leaflet عند فتح Dialog
+  const initMap = useCallback(() => {
+    if (!mapContainerRef.current) return;
+    // إزالة الخريطة القديمة إن وجدت
+    if (leafletMapRef.current) {
+      leafletMapRef.current.remove();
+      leafletMapRef.current = null;
+    }
+
+    const L = (window as any).L;
+    if (!L) return;
+
+    const lat = parseFloat(storeLat) || 15.3694;
+    const lng = parseFloat(storeLng) || 44.1910;
+
+    // إنشاء الخريطة
+    const map = L.map(mapContainerRef.current, { zoomControl: true }).setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // تعديل أيقونة الماركر الافتراضية
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
+    // ماركر ابتدائي
+    const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+    marker.bindPopup('موقع المتجر').openPopup();
+    leafletMarkerRef.current = marker;
+    setMapPickedLat(lat.toFixed(6));
+    setMapPickedLng(lng.toFixed(6));
+
+    // تحديث الإحداثيات عند النقر على الخريطة
+    map.on('click', (e: any) => {
+      const { lat: newLat, lng: newLng } = e.latlng;
+      marker.setLatLng([newLat, newLng]);
+      setMapPickedLat(newLat.toFixed(6));
+      setMapPickedLng(newLng.toFixed(6));
+    });
+
+    // تحديث الإحداثيات عند سحب الماركر
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      setMapPickedLat(pos.lat.toFixed(6));
+      setMapPickedLng(pos.lng.toFixed(6));
+    });
+
+    leafletMapRef.current = map;
+    // إعادة حساب حجم الخريطة بعد لحظة
+    setTimeout(() => map.invalidateSize(), 100);
+  }, [storeLat, storeLng]);
+
+  // تحميل Leaflet script ديناميكياً إذا لم يكن محملاً
+  useEffect(() => {
+    if (!isMapOpen) return;
+    const loadLeaflet = () => {
+      if ((window as any).L) {
+        setTimeout(initMap, 50);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => setTimeout(initMap, 50);
+      document.head.appendChild(script);
+    };
+    loadLeaflet();
+    return () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, [isMapOpen, initMap]);
 
   const saveLocationMutation = useMutation({
     mutationFn: async ({ lat, lng }: { lat: string; lng: string }) => {
@@ -426,14 +514,88 @@ export default function AdminDeliveryFees() {
                   <MapPin className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">موقع متجر طمطوم</CardTitle>
+                  <CardTitle className="text-base">موقع المتجر</CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    يُستخدم هذا الموقع لحساب مسافة التوصيل للعملاء. احصل على الإحداثيات من Google Maps.
+                    يُستخدم هذا الموقع لحساب مسافة التوصيل للعملاء. حدد الموقع عبر الخريطة أو أدخل الإحداثيات يدوياً.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* زر الخريطة المنبثقة */}
+              <Dialog open={isMapOpen} onOpenChange={setIsMapOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 gap-2 border-2 border-green-300 text-green-700 hover:bg-green-50 font-bold"
+                  >
+                    <MapIcon className="h-5 w-5" />
+                    تحديد الموقع على الخريطة
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl p-0 overflow-hidden" dir="rtl">
+                  <DialogHeader className="px-4 pt-4 pb-2">
+                    <DialogTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-green-600" />
+                      تحديد موقع المتجر
+                    </DialogTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      انقر على الخريطة أو اسحب الدبوس لتحديد الموقع الدقيق
+                    </p>
+                  </DialogHeader>
+
+                  {/* حاوية الخريطة */}
+                  <div
+                    ref={mapContainerRef}
+                    style={{ height: '380px', width: '100%', zIndex: 0 }}
+                    className="border-y border-gray-200"
+                  />
+
+                  {/* معلومات الموقع المختار */}
+                  <div className="px-4 py-3 bg-gray-50 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold text-gray-600">خط العرض (Lat)</Label>
+                        <Input
+                          value={mapPickedLat}
+                          onChange={e => setMapPickedLat(e.target.value)}
+                          className="font-mono text-sm h-9"
+                          placeholder="15.3694"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold text-gray-600">خط الطول (Lng)</Label>
+                        <Input
+                          value={mapPickedLng}
+                          onChange={e => setMapPickedLng(e.target.value)}
+                          className="font-mono text-sm h-9"
+                          placeholder="44.1910"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+                        onClick={() => {
+                          if (mapPickedLat && mapPickedLng) {
+                            setStoreLat(mapPickedLat);
+                            setStoreLng(mapPickedLng);
+                            setIsMapOpen(false);
+                            toast({ title: 'تم تحديد الموقع', description: `${mapPickedLat}, ${mapPickedLng}` });
+                          }
+                        }}
+                        disabled={!mapPickedLat || !mapPickedLng}
+                      >
+                        <Crosshair className="h-4 w-4" />
+                        تأكيد الموقع
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsMapOpen(false)}>إلغاء</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* إدخال الإحداثيات يدوياً */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold">خط العرض (Latitude)</Label>
@@ -445,7 +607,6 @@ export default function AdminDeliveryFees() {
                     onChange={e => setStoreLat(e.target.value)}
                     className="font-mono text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">الرقم الأول من إحداثيات Google Maps</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-bold">خط الطول (Longitude)</Label>
@@ -457,7 +618,6 @@ export default function AdminDeliveryFees() {
                     onChange={e => setStoreLng(e.target.value)}
                     className="font-mono text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">الرقم الثاني من إحداثيات Google Maps</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -470,14 +630,6 @@ export default function AdminDeliveryFees() {
                   <Save className="h-4 w-4" />
                   {saveLocationMutation.isPending ? 'جاري الحفظ...' : 'حفظ الموقع'}
                 </Button>
-                <a
-                  href="https://maps.google.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 underline hover:no-underline"
-                >
-                  فتح Google Maps للحصول على الإحداثيات
-                </a>
               </div>
               {storeLat && storeLng && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-green-200 text-xs">

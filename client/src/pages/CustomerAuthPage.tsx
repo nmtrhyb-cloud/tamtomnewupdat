@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, User, UserPlus, Phone, Lock, ArrowRight } from 'lucide-react';
+import { Loader2, User, UserPlus, Phone, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUiSettings } from '@/context/UiSettingsContext';
 
 declare global {
   interface Window {
@@ -41,10 +42,16 @@ declare global {
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
+const TEST_PHONES = ['5543323233', '55423455555', '05543323233', '055423455555'];
+function isTestPhone(phone: string): boolean {
+  return TEST_PHONES.some(t => phone.trim() === t);
+}
+
 export default function CustomerAuthPage() {
   const [, setLocation] = useLocation();
   const { login, register } = useAuth();
   const { toast } = useToast();
+  const { getSetting } = useUiSettings();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('login');
@@ -60,12 +67,20 @@ export default function CustomerAuthPage() {
   const [regPassword, setRegPassword] = useState('');
   const [phoneError, setPhoneError] = useState('');
 
+  // OTP state
+  const [otpStep, setOtpStep] = useState<'form' | 'otp'>('form');
+  const [otpCode, setOtpCode] = useState('');
+  const [testOtp, setTestOtp] = useState<string | null>(null);
+
+  const logoUrl = getSetting('header_logo_url') || getSetting('logo_url') || getSetting('top_bar_logo_url') || '';
+
   const normalizeSaudiPhone = (phone: string): string | null => {
     const cleaned = phone.replace(/[\s\-().]/g, '');
     const arabicToLatin = (s: string) =>
       s.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
        .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
     const n = arabicToLatin(cleaned);
+    if (isTestPhone(n)) return n;
     if (/^05[0-9]{8}$/.test(n)) return n;
     if (/^5[0-9]{8}$/.test(n)) return '0' + n;
     if (/^(\+966|00966)5[0-9]{8}$/.test(n)) return '0' + n.replace(/^(\+966|00966)/, '');
@@ -109,7 +124,7 @@ export default function CustomerAuthPage() {
         localStorage.setItem('auth_token', result.token);
         toast({
           title: 'تم تسجيل الدخول',
-          description: `مرحباً بك في واصل، ${result.user?.name || ''}`,
+          description: `مرحباً بك، ${result.user?.name || ''}`,
         });
         window.location.href = '/';
       } else {
@@ -211,7 +226,7 @@ export default function CustomerAuthPage() {
     try {
       const result = await login(loginIdentifier, loginPassword);
       if (result.success) {
-        toast({ title: 'تم تسجيل الدخول', description: 'مرحباً بك مجدداً في واصل' });
+        toast({ title: 'تم تسجيل الدخول', description: 'مرحباً بك مجدداً' });
         setLocation('/');
       } else {
         setError(result.message);
@@ -223,25 +238,66 @@ export default function CustomerAuthPage() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  // الخطوة الأولى: إرسال OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    const normalizedPhone = normalizeSaudiPhone(regPhone);
-    if (!normalizedPhone) {
-      setPhoneError('يجب أن يكون رقم هاتف سعودي صحيح (مثال: 0512345678)');
-      setLoading(false);
+    if (!regName.trim()) {
+      setError('الاسم مطلوب');
       return;
     }
+    const phone = regPhone.trim();
+    if (!normalizeSaudiPhone(phone)) {
+      setPhoneError('يجب أن يكون رقم هاتف سعودي صحيح (مثال: 0512345678)');
+      return;
+    }
+    if (regPassword.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    setLoading(true);
     try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setOtpStep('otp');
+        setTestOtp(result.testOtp || null);
+        toast({ title: 'تم إرسال رمز التحقق', description: result.message });
+      } else {
+        setError(result.message || 'فشل إرسال الرمز');
+      }
+    } catch {
+      setError('خطأ في الاتصال بالخادم');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // الخطوة الثانية: تأكيد OTP وإتمام التسجيل
+  const handleRegisterWithOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!otpCode.trim()) {
+      setError('يرجى إدخال رمز التحقق');
+      return;
+    }
+    setLoading(true);
+    try {
+      const phone = regPhone.trim();
+      const normalizedPhone = normalizeSaudiPhone(phone) || phone;
       const result = await register({
         name: regName,
         phone: normalizedPhone,
         password: regPassword,
         username: normalizedPhone,
-      });
+        otp: otpCode.trim(),
+      } as any);
       if (result.success) {
-        toast({ title: 'تم إنشاء الحساب', description: 'مرحباً بك في واصل، تم إنشاء حسابك بنجاح' });
+        toast({ title: 'تم إنشاء الحساب', description: 'مرحباً بك، تم إنشاء حسابك بنجاح' });
         setLocation('/');
       } else {
         setError(result.message);
@@ -253,12 +309,28 @@ export default function CustomerAuthPage() {
     }
   };
 
+  const handleBackToForm = () => {
+    setOtpStep('form');
+    setOtpCode('');
+    setTestOtp(null);
+    setError('');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 py-12" dir="rtl">
       <div className="mb-8 text-center">
-        <div className="text-5xl md:text-6xl mb-4 flex justify-center font-black">
-          <span className="text-[#ec3714]">واصل</span>
-        </div>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="شعار التطبيق"
+            className="h-20 max-w-[200px] object-contain mx-auto mb-2"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <div className="text-5xl md:text-6xl mb-4 flex justify-center font-black">
+            <span className="text-[#ec3714]">واصل</span>
+          </div>
+        )}
         <p className="text-muted-foreground font-bold">لخدمات التوصيل</p>
       </div>
 
@@ -275,7 +347,7 @@ export default function CustomerAuthPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="bg-white px-8 pb-10">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setOtpStep('form'); setOtpCode(''); setTestOtp(null); setError(''); }} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-10 bg-gray-100 p-1.5 rounded-2xl h-14">
               <TabsTrigger
                 value="login"
@@ -408,83 +480,148 @@ export default function CustomerAuthPage() {
             </TabsContent>
 
             <TabsContent value="register">
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="reg-name" className="font-bold">الاسم بالكامل</Label>
-                  <div className="relative">
-                    <User className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="reg-name"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder="مثال: محمد علي"
-                      required
-                      className="pr-10 h-12 rounded-none border-2 focus-visible:ring-primary"
-                    />
+              {otpStep === 'form' ? (
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-name" className="font-bold">الاسم بالكامل</Label>
+                    <div className="relative">
+                      <User className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="reg-name"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        placeholder="مثال: محمد علي"
+                        required
+                        className="pr-10 h-12 rounded-xl border-2 focus-visible:ring-primary"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reg-phone" className="font-bold">رقم الهاتف السعودي</Label>
-                  <div className="relative">
-                    <Phone className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-phone" className="font-bold">رقم الهاتف السعودي</Label>
+                    <div className="relative">
+                      <Phone className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="reg-phone"
+                        type="tel"
+                        value={regPhone}
+                        onChange={(e) => { setRegPhone(e.target.value); setPhoneError(''); }}
+                        onBlur={() => regPhone && validatePhone(regPhone)}
+                        placeholder="0512345678"
+                        required
+                        className={`pr-10 h-12 rounded-xl border-2 focus-visible:ring-primary text-left ${phoneError ? 'border-red-500' : ''}`}
+                        dir="ltr"
+                        maxLength={15}
+                        inputMode="numeric"
+                      />
+                    </div>
+                    {phoneError && (
+                      <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                        <span>⚠</span> {phoneError}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">يقبل: 05XXXXXXXX أو +9665XXXXXXXX</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-pass" className="font-bold">كلمة المرور</Label>
+                    <div className="relative">
+                      <Lock className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="reg-pass"
+                        type="password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="اختر كلمة مرور (6 أحرف على الأقل)"
+                        required
+                        minLength={6}
+                        className="pr-10 h-12 rounded-xl border-2 focus-visible:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-14 rounded-xl font-black text-xl mt-6 bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/20 transition-all active:scale-95"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        جاري الإرسال...
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="ml-2 h-5 w-5" />
+                        إرسال رمز التحقق
+                      </>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleRegisterWithOtp} className="space-y-4">
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <ShieldCheck className="w-8 h-8 text-green-600" />
+                    </div>
+                    <p className="font-bold text-gray-700">تم إرسال رمز التحقق إلى</p>
+                    <p className="text-primary font-black text-lg mt-1" dir="ltr">{regPhone}</p>
+                  </div>
+
+                  {testOtp && (
+                    <Alert className="border-amber-300 bg-amber-50 mb-4">
+                      <AlertDescription className="font-bold text-amber-800 text-center">
+                        رقم اختبار — رمز التحقق: <span className="text-2xl tracking-widest font-black">{testOtp}</span>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="otp-input" className="font-bold">رمز التحقق</Label>
                     <Input
-                      id="reg-phone"
-                      type="tel"
-                      value={regPhone}
-                      onChange={(e) => { setRegPhone(e.target.value); setPhoneError(''); }}
-                      onBlur={() => regPhone && validatePhone(regPhone)}
-                      placeholder="0512345678"
+                      id="otp-input"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      placeholder="أدخل الرمز المكون من 4 أرقام"
                       required
-                      className={`pr-10 h-12 rounded-none border-2 focus-visible:ring-primary text-left ${phoneError ? 'border-red-500' : ''}`}
-                      dir="ltr"
-                      maxLength={15}
+                      className="h-16 rounded-xl border-2 text-center text-3xl tracking-widest font-black focus-visible:ring-primary"
                       inputMode="numeric"
+                      maxLength={4}
+                      dir="ltr"
+                      autoFocus
                     />
                   </div>
-                  {phoneError && (
-                    <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
-                      <span>⚠</span> {phoneError}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">يقبل: 05XXXXXXXX أو +9665XXXXXXXX</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reg-pass" className="font-bold">كلمة المرور</Label>
-                  <div className="relative">
-                    <Lock className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="reg-pass"
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="اختر كلمة مرور"
-                      required
-                      className="pr-10 h-12 rounded-none border-2 focus-visible:ring-primary"
-                    />
-                  </div>
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full h-14 rounded-xl font-black text-xl mt-6 bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/20 transition-all active:scale-95"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      جاري إنشاء الحساب...
-                    </>
-                  ) : (
-                    'إنشاء حساب جديد'
-                  )}
-                </Button>
-              </form>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-14 rounded-xl font-black text-xl mt-4 bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/20 transition-all active:scale-95"
+                    disabled={loading || otpCode.length !== 4}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        جاري إنشاء الحساب...
+                      </>
+                    ) : (
+                      'تأكيد وإنشاء الحساب'
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleBackToForm}
+                    className="w-full h-12 rounded-xl font-bold text-gray-500 hover:text-gray-700"
+                    disabled={loading}
+                  >
+                    تغيير رقم الهاتف
+                  </Button>
+                </form>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
       <p className="mt-8 text-sm text-muted-foreground max-w-xs text-center">
-        بتسجيلك في واصل، أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
+        بتسجيلك، أنت توافق على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
       </p>
     </div>
   );
