@@ -269,7 +269,22 @@ router.post('/register', async (req, res) => {
       validatedData.username = arabicToLatinDigits(String(validatedData.username).trim()).replace(/\s+/g, '');
     }
     if (validatedData.phone) {
-      validatedData.phone = arabicToLatinDigits(String(validatedData.phone).trim()).replace(/\s+/g, '');
+      const rawPhone = arabicToLatinDigits(String(validatedData.phone).trim()).replace(/\s+/g, '');
+      // تطبيع رقم الهاتف السعودي
+      const normalizeSaudiPhone = (p: string): string | null => {
+        if (/^05[0-9]{8}$/.test(p)) return p;
+        if (/^5[0-9]{8}$/.test(p)) return '0' + p;
+        if (/^(\+966|00966)5[0-9]{8}$/.test(p)) return '0' + p.replace(/^(\+966|00966)/, '');
+        return null;
+      };
+      const normalized = normalizeSaudiPhone(rawPhone);
+      if (!normalized) {
+        return res.status(400).json({
+          success: false,
+          message: 'رقم الهاتف يجب أن يكون رقماً سعودياً صحيحاً (مثال: 0512345678)',
+        });
+      }
+      validatedData.phone = normalized;
     }
     if (validatedData.email) {
       validatedData.email = String(validatedData.email).trim().toLowerCase();

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ override: false }); // Don't override existing env vars (Replit secrets take priority)
 import express, { type Request, Response, NextFunction } from "express";
-import { eq, lt, inArray, and } from "drizzle-orm";
+import { eq, lt, gt, inArray, and, sql } from "drizzle-orm";
 import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupWebSockets } from "./socket";
@@ -298,7 +298,7 @@ app.use((req, res, next) => {
               .where(and(
                 inArray(schema.orders.status, TERMINAL),
                 lt(schema.orders.createdAt, twentyThreeHoursAgo),
-                sql`${schema.orders.createdAt} > ${twentyFiveHoursAgo}`,
+                gt(schema.orders.createdAt, twentyFiveHoursAgo),
                 sql`${schema.orders.customerId} IS NOT NULL`,
               ));
 

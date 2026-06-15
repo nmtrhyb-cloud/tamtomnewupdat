@@ -16,8 +16,8 @@ const defaultUiSettings = [
   { key: "wasalni_base_fee", value: "5", category: "delivery", description: "رسوم خدمة وصل لي الأساسية" },
   { key: "bottom_bar_enabled", value: "true", category: "navigation", description: "إظهار شريط التنقل السفلي" },
   // إعدادات عامة
-  { key: "app_name", value: "واصل", category: "general", description: "اسم التطبيق" },
-  { key: "app_theme", value: "#ec3714", category: "general", description: "اللون الأساسي للتطبيق (hex)" },
+  { key: "app_name", value: "طمطوم", category: "general", description: "اسم التطبيق" },
+  { key: "app_theme", value: "#E53225", category: "general", description: "اللون الأساسي للتطبيق (hex)" },
   { key: "delivery_fee_default", value: "5", category: "general", description: "رسوم التوصيل الافتراضية (ريال)" },
   { key: "minimum_order_default", value: "25", category: "general", description: "الحد الأدنى لقيمة الطلب (ريال)" },
   // إعدادات التوصيل
@@ -56,7 +56,7 @@ const defaultUiSettings = [
   { key: "show_splash_screen", value: "true", category: "splash", description: "عرض شاشة الترحيب" },
   { key: "splash_image_url", value: "", category: "splash", description: "صورة شاشة الترحيب" },
   { key: "splash_image_url_2", value: "", category: "splash", description: "صورة إضافية للترحيب" },
-  { key: "splash_title", value: "واصل", category: "splash", description: "عنوان شاشة الترحيب" },
+  { key: "splash_title", value: "طمطوم", category: "splash", description: "عنوان شاشة الترحيب" },
   { key: "splash_subtitle", value: "أفضل الخضار والفواكه الطازجة توصل لبابك", category: "splash", description: "نص الترحيب" },
   { key: "splash_button_text", value: "ابدأ الآن", category: "splash", description: "نص زر البداية" },
   // إعدادات الدعم والتواصل
@@ -142,7 +142,7 @@ export async function seedDefaultData() {
     // Seed restaurants
     const restaurants = [
       {
-        name: "متجر واصل",
+        name: "متجر طمطوم",
         description: "أجود أنواع الفواكه والخضروات الطازجة يومياً",
         image: "https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
         phone: "+967777777777",

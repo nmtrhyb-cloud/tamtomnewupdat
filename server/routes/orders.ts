@@ -27,7 +27,9 @@ router.post("/", async (req, res) => {
       customerId,
       deliveryPreference,
       scheduledDate,
-      scheduledTimeSlot
+      scheduledTimeSlot,
+      couponCode,
+      couponId,
     } = req.body;
 
     // التحقق من البيانات المطلوبة
@@ -210,6 +212,21 @@ router.post("/", async (req, res) => {
     };
 
     const order = await storage.createOrder(orderData);
+
+    // معالجة الكوبون: تسجيل الاستخدام وزيادة العداد
+    if (couponCode && couponId) {
+      try {
+        await storage.useCoupon(couponId, {
+          couponId,
+          userId: customerId || null,
+          userPhone: customerPhone || null,
+          orderId: order.id,
+          discountAmount: String(req.body.couponDiscount || '0'),
+        });
+      } catch (couponErr) {
+        console.error('خطأ في تسجيل استخدام الكوبون:', couponErr);
+      }
+    }
 
     // إنشاء إشعارات للإدارة والمطعم فقط
     // الطلب لا يصل للسائقين إلا بعد تعيينه من الإدارة

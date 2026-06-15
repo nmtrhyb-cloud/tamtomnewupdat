@@ -20,7 +20,7 @@ export function log(message: string, source = "express") {
 
 export async function setupVite(app: Express, server: Server) {
   // Dynamic import — لا يُحمَّل في الإنتاج
-  const vite = await import("vite");
+  const { createServer: createViteServer } = await import("vite");
 
   const serverOptions = {
     middlewareMode: true,
@@ -31,11 +31,12 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true as true,
   };
 
-  const viteServer = await vite.createServer({
-    configFile: path.resolve(__dirname, "..", "vite.config.ts"),
+  const projectRoot = process.cwd();
+  const viteServer = await createViteServer({
+    configFile: path.resolve(projectRoot, "vite.config.ts"),
     server: serverOptions,
     appType: "custom",
-    root: path.resolve(__dirname, "..", "client"),
+    root: path.resolve(projectRoot, "client"),
   });
 
   app.use(viteServer.middlewares);
@@ -44,8 +45,8 @@ export async function setupVite(app: Express, server: Server) {
     try {
       // Try client/index.html first, then root index.html
       let clientTemplate: string;
-      const clientIndexPath = path.resolve(__dirname, "..", "client", "index.html");
-      const rootIndexPath = path.resolve(__dirname, "..", "index.html");
+      const clientIndexPath = path.resolve(process.cwd(), "client", "index.html");
+      const rootIndexPath = path.resolve(process.cwd(), "index.html");
       if (fs.existsSync(clientIndexPath)) {
         clientTemplate = clientIndexPath;
       } else {
@@ -67,7 +68,7 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   // في الإنتاج، الملفات في dist/public (نسبة إلى dist/index.js)
-  const distPath = path.resolve(__dirname, "public");
+  const distPath = path.resolve(process.cwd(), "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     console.error(`Build directory not found: ${distPath}`);
