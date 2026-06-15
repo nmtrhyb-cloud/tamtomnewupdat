@@ -189,6 +189,42 @@ export default function AdminDeliveryFees() {
     }
   });
 
+  // حالة موقع متجر طمطوم
+  const [storeLat, setStoreLat] = useState('15.3694');
+  const [storeLng, setStoreLng] = useState('44.1910');
+
+  // جلب موقع المتجر من الإعدادات
+  const { data: uiSettings } = useQuery<any[]>({
+    queryKey: ['/api/settings'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/settings');
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (uiSettings && Array.isArray(uiSettings)) {
+      const lat = uiSettings.find((s: any) => s.key === 'store_lat')?.value;
+      const lng = uiSettings.find((s: any) => s.key === 'store_lng')?.value;
+      if (lat) setStoreLat(lat);
+      if (lng) setStoreLng(lng);
+    }
+  }, [uiSettings]);
+
+  const saveLocationMutation = useMutation({
+    mutationFn: async ({ lat, lng }: { lat: string; lng: string }) => {
+      await apiRequest('PUT', '/api/admin/settings/store_lat', { value: lat });
+      await apiRequest('PUT', '/api/admin/settings/store_lng', { value: lng });
+    },
+    onSuccess: () => {
+      toast({ title: '✅ تم حفظ موقع المتجر', description: 'سيتم استخدام الموقع الجديد لحساب رسوم التوصيل' });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
+    },
+    onError: () => {
+      toast({ title: 'خطأ في حفظ الموقع', variant: 'destructive' });
+    },
+  });
+
   // حالة الإعدادات
   const [formSettings, setFormSettings] = useState<DeliveryFeeSettings>({
     type: 'per_km',
@@ -381,6 +417,78 @@ export default function AdminDeliveryFees() {
 
         {/* إعدادات رسوم التوصيل */}
         <TabsContent value="settings" className="space-y-6">
+
+          {/* ── موقع متجر طمطوم ──────────────────────────────── */}
+          <Card className="border-2 border-green-200 bg-green-50/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">موقع متجر طمطوم</CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    يُستخدم هذا الموقع لحساب مسافة التوصيل للعملاء. احصل على الإحداثيات من Google Maps.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">خط العرض (Latitude)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="مثال: 15.3694"
+                    value={storeLat}
+                    onChange={e => setStoreLat(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">الرقم الأول من إحداثيات Google Maps</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">خط الطول (Longitude)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="مثال: 44.1910"
+                    value={storeLng}
+                    onChange={e => setStoreLng(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">الرقم الثاني من إحداثيات Google Maps</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => saveLocationMutation.mutate({ lat: storeLat, lng: storeLng })}
+                  disabled={saveLocationMutation.isPending || !storeLat || !storeLng}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  size="sm"
+                >
+                  <Save className="h-4 w-4" />
+                  {saveLocationMutation.isPending ? 'جاري الحفظ...' : 'حفظ الموقع'}
+                </Button>
+                <a
+                  href="https://maps.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 underline hover:no-underline"
+                >
+                  فتح Google Maps للحصول على الإحداثيات
+                </a>
+              </div>
+              {storeLat && storeLng && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-green-200 text-xs">
+                  <MapPin className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                  <span className="text-muted-foreground">الموقع الحالي:</span>
+                  <span className="font-mono font-bold text-gray-800">{storeLat}, {storeLng}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>طريقة حساب رسوم التوصيل</CardTitle>
@@ -469,19 +577,6 @@ export default function AdminDeliveryFees() {
                 <p className="text-xs text-muted-foreground">
                   إذا كان المجموع الفرعي للطلب أكبر من هذا المبلغ، يكون التوصيل مجاني. اتركه 0 لتعطيل هذه الميزة.
                 </p>
-              </div>
-
-              {/* ملاحظة الموقع */}
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">موقع المتجر</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      يتم تحديد موقع كل متجر من صفحة إدارة المتاجر. الخادم يحسب المسافة تلقائياً بين موقع العميل وموقع المتجر المحدد في الطلب.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               {/* معادلة الحساب */}

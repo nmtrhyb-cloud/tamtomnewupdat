@@ -74,7 +74,6 @@ export default function AdminMenuItems() {
       if (!data.price.trim()) throw new Error('سعر المنتج مطلوب');
       if (!data.image.trim()) throw new Error('صورة المنتج مطلوبة');
       if (!data.category.trim()) throw new Error('قسم المنتج مطلوب');
-      if (!data.restaurantId) throw new Error('يجب اختيار متجر');
 
       const price = parseFloat(data.price);
       if (isNaN(price) || price <= 0) throw new Error('سعر المنتج يجب أن يكون رقم صحيح أكبر من صفر');
@@ -100,7 +99,7 @@ export default function AdminMenuItems() {
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: data.restaurantId,
+        restaurantId: data.restaurantId || restaurants[0]?.id || '',
       };
       
       const response = await apiRequest('POST', '/api/admin/menu-items', submitData);
@@ -123,7 +122,6 @@ export default function AdminMenuItems() {
       if (!data.price.trim()) throw new Error('سعر المنتج مطلوب');
       if (!data.image.trim()) throw new Error('صورة المنتج مطلوبة');
       if (!data.category.trim()) throw new Error('قسم المنتج مطلوب');
-      if (!data.restaurantId) throw new Error('يجب اختيار متجر');
 
       const price = parseFloat(data.price);
       if (isNaN(price) || price <= 0) throw new Error('سعر المنتج يجب أن يكون رقم صحيح أكبر من صفر');
@@ -149,7 +147,7 @@ export default function AdminMenuItems() {
         rating: parseFloat(data.rating) || 5,
         isFeatured: data.isFeatured,
         isNew: data.isNew,
-        restaurantId: data.restaurantId,
+        restaurantId: data.restaurantId || restaurants[0]?.id || '',
       };
       
       const response = await apiRequest('PUT', `/api/admin/menu-items/${id}`, submitData);
@@ -334,25 +332,6 @@ export default function AdminMenuItems() {
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="restaurantId">المتجر / المطعم *</Label>
-              <Select
-                value={formData.restaurantId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, restaurantId: value, category: '' }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المتجر أو المطعم" />
-                </SelectTrigger>
-                <SelectContent>
-                  {restaurants.map((restaurant) => (
-                    <SelectItem key={restaurant.id} value={restaurant.id}>
-                      {restaurant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="name">اسم المنتج *</Label>

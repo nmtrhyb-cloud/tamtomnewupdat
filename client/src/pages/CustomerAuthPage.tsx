@@ -58,6 +58,29 @@ export default function CustomerAuthPage() {
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
+  const normalizeSaudiPhone = (phone: string): string | null => {
+    const cleaned = phone.replace(/[\s\-().]/g, '');
+    const arabicToLatin = (s: string) =>
+      s.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+       .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
+    const n = arabicToLatin(cleaned);
+    if (/^05[0-9]{8}$/.test(n)) return n;
+    if (/^5[0-9]{8}$/.test(n)) return '0' + n;
+    if (/^(\+966|00966)5[0-9]{8}$/.test(n)) return '0' + n.replace(/^(\+966|00966)/, '');
+    return null;
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    const normalized = normalizeSaudiPhone(phone);
+    if (!normalized) {
+      setPhoneError('يجب أن يكون رقم هاتف سعودي صحيح (مثال: 0512345678)');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
 
   const handleGoogleCredential = useCallback(async (credential: string) => {
     setLoading(true);
@@ -204,12 +227,18 @@ export default function CustomerAuthPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    const normalizedPhone = normalizeSaudiPhone(regPhone);
+    if (!normalizedPhone) {
+      setPhoneError('يجب أن يكون رقم هاتف سعودي صحيح (مثال: 0512345678)');
+      setLoading(false);
+      return;
+    }
     try {
       const result = await register({
         name: regName,
-        phone: regPhone,
+        phone: normalizedPhone,
         password: regPassword,
-        username: regPhone,
+        username: normalizedPhone,
       });
       if (result.success) {
         toast({ title: 'تم إنشاء الحساب', description: 'مرحباً بك في واصل، تم إنشاء حسابك بنجاح' });
@@ -395,20 +424,29 @@ export default function CustomerAuthPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-phone" className="font-bold">رقم الهاتف</Label>
+                  <Label htmlFor="reg-phone" className="font-bold">رقم الهاتف السعودي</Label>
                   <div className="relative">
                     <Phone className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="reg-phone"
                       type="tel"
                       value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="77XXXXXXX"
+                      onChange={(e) => { setRegPhone(e.target.value); setPhoneError(''); }}
+                      onBlur={() => regPhone && validatePhone(regPhone)}
+                      placeholder="0512345678"
                       required
-                      className="pr-10 h-12 rounded-none border-2 focus-visible:ring-primary text-left"
+                      className={`pr-10 h-12 rounded-none border-2 focus-visible:ring-primary text-left ${phoneError ? 'border-red-500' : ''}`}
                       dir="ltr"
+                      maxLength={15}
+                      inputMode="numeric"
                     />
                   </div>
+                  {phoneError && (
+                    <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                      <span>⚠</span> {phoneError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">يقبل: 05XXXXXXXX أو +9665XXXXXXXX</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-pass" className="font-bold">كلمة المرور</Label>

@@ -331,6 +331,7 @@ export default function CartPage() {
         ? parseFloat(userLocation.position.coords.longitude.toFixed(8)).toString()
         : undefined,
       status: 'pending',
+      ...(couponData ? { couponCode: couponCode.trim().toUpperCase(), couponId: couponData.id, couponDiscount: couponDiscount.toString() } : {}),
     };
 
     // حفظ رقم الهاتف لاسترجاع الطلبات لاحقاً (للزوار وللعملاء معاً)
@@ -683,7 +684,8 @@ export default function CartPage() {
               scheduledDate: data.date,
               scheduledTimeSlot: data.timeSlot || data.time,
               isScheduled: true,
-              scheduledDateTime: new Date(`${data.date}T${data.time || '00:00'}`)
+              scheduledDateTime: new Date(`${data.date}T${data.time || '00:00'}`),
+              ...(couponData ? { couponCode: couponCode.trim().toUpperCase(), couponId: couponData.id, couponDiscount: couponDiscount.toString() } : {}),
             };
             placeOrderMutation.mutate(orderData);
             setShowScheduledDialog(false);

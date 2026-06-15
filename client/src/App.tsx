@@ -48,6 +48,7 @@ function MainApp() {
   });
 
   const { isAuthenticated, user } = useAuth();
+  const { getSetting } = useUiSettings();
 
   // Pre-warm caches on cold start (covers users who already saw splash this session)
   useEffect(() => {
@@ -79,7 +80,10 @@ function MainApp() {
     }
   }, [needsRedirectToAuth]);
 
-  if (showSplash && !isAdminRoute && !isDriverRoute && !isAuthPage) {
+  // فحص إعداد إظهار شاشة الترحيب من لوحة التحكم
+  const splashEnabled = getSetting('show_splash_screen') !== 'false';
+
+  if (showSplash && splashEnabled && !isAdminRoute && !isDriverRoute && !isAuthPage) {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
 
