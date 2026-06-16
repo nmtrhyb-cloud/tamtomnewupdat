@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const SETTINGS_CACHE_KEY = 'ui_settings_cache';
-const SETTINGS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const SETTINGS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (reduced from 5)
 
 interface UiSetting {
   id: string;
@@ -47,6 +47,9 @@ function saveCachedSettings(settings: Record<string, string>) {
   }
 }
 
+// Public endpoint — works for all roles (customer, driver, admin) without auth
+const SETTINGS_ENDPOINT = '/api/ui-settings';
+
 export function UiSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Record<string, string>>(() => {
     return loadCachedSettings() || {};
@@ -54,10 +57,13 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingRef = useRef(false);
 
   const loadSettings = useCallback(async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
-      const response = await fetch('/api/admin/ui-settings');
+      const response = await fetch(SETTINGS_ENDPOINT);
       if (response.ok) {
         const settingsData: UiSetting[] = await response.json();
         const settingsMap = settingsData.reduce((acc, setting) => {
@@ -67,9 +73,10 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
         setSettings(settingsMap);
         saveCachedSettings(settingsMap);
       }
-    } catch (error) {
-      // On network failure, keep cached settings - do nothing
+    } catch {
+      // On network failure, keep cached settings
     } finally {
+      isFetchingRef.current = false;
       if (isInitial) {
         setLoading(false);
       }
@@ -77,7 +84,7 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -87,13 +94,14 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          // Refresh settings when admin changes them
           if (
             message.type === 'settings_updated' ||
             message.type === 'ui_settings_changed' ||
             message.type === 'admin_update' ||
             message.type === 'settings_changed'
           ) {
+            // Clear cache so next load fetches fresh
+            localStorage.removeItem(SETTINGS_CACHE_KEY);
             loadSettings(false);
           }
         } catch {
@@ -103,16 +111,16 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
 
       ws.onclose = () => {
         wsRef.current = null;
-        // Reconnect after 10 seconds
+        // Reconnect after 3 seconds (reduced from 10)
         if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = setTimeout(connectWebSocket, 10000);
+        reconnectTimerRef.current = setTimeout(connectWebSocket, 3000);
       };
 
       ws.onerror = () => {
         ws.close();
       };
     } catch {
-      // WebSocket not available, fall back to polling
+      // WebSocket not available, rely on polling
     }
   }, [loadSettings]);
 
@@ -150,19 +158,17 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
   };
 
   const refreshSettings = async () => {
+    localStorage.removeItem(SETTINGS_CACHE_KEY);
     setLoading(true);
     await loadSettings(true);
   };
 
   useEffect(() => {
-    // Load settings on mount (cached data shown immediately, then fetch fresh)
     loadSettings(true);
-
-    // Connect WebSocket for real-time updates
     connectWebSocket();
 
-    // Periodic refresh every 30 seconds as fallback
-    const interval = setInterval(() => loadSettings(false), 30000);
+    // Periodic refresh every 15 seconds as reliable fallback
+    const interval = setInterval(() => loadSettings(false), 15000);
 
     return () => {
       clearInterval(interval);

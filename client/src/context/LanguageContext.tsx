@@ -29,7 +29,7 @@ const translations = {
     'settings': 'الإعدادات',
     'privacy_policy': 'سياسة الخصوصية',
     'contact_us': 'اتصل بنا',
-    'about_tamtom': 'عن واصل',
+    'about_tamtom': 'عن طمطوم',
     'orders': 'طلباتي',
     'logout': 'تسجيل الخروج',
     'login': 'دخول',
