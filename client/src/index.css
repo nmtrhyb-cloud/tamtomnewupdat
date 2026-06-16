@@ -11,32 +11,32 @@
   --card-foreground: hsl(222.2 84% 4.9%);
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(222.2 84% 4.9%);
-  --primary: hsl(32 95% 55%); /* Wasel Amber - matches logo */
+  --primary: hsl(3 78% 52%); /* TamTom Red #E53225 */
   --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(220 45% 12%); /* Wasel Navy - matches logo background */
+  --secondary: hsl(96 71% 43%); /* TamTom Green #5BB827 */
   --secondary-foreground: hsl(0 0% 100%);
-  --muted: hsl(32 15% 96%);
+  --muted: hsl(3 15% 96%);
   --muted-foreground: hsl(220 8% 46%);
-  --accent: hsl(32 95% 55%);
-  --accent-foreground: hsl(220 45% 12%);
+  --accent: hsl(96 71% 43%); /* TamTom Green */
+  --accent-foreground: hsl(0 0% 100%);
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(210 40% 98%);
   --border: hsl(214.3 31.8% 91.4%);
   --input: hsl(214.3 31.8% 91.4%);
-  --ring: hsl(32 95% 55%);
-  --chart-1: hsl(32 95% 55%);
-  --chart-2: hsl(220 45% 12%);
-  --chart-3: hsl(38 92% 60%);
-  --chart-4: hsl(28 85% 58%);
-  --chart-5: hsl(220 30% 30%);
-  --sidebar: hsl(32 8% 97%);
+  --ring: hsl(3 78% 52%);
+  --chart-1: hsl(3 78% 52%);
+  --chart-2: hsl(96 71% 43%);
+  --chart-3: hsl(37 91% 55%);
+  --chart-4: hsl(120 55% 35%);
+  --chart-5: hsl(220 45% 25%);
+  --sidebar: hsl(3 8% 97%);
   --sidebar-foreground: hsl(220 25% 8%);
-  --sidebar-primary: hsl(32 95% 55%);
+  --sidebar-primary: hsl(3 78% 52%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(220 40% 96%);
-  --sidebar-accent-foreground: hsl(32 95% 55%);
+  --sidebar-accent: hsl(96 30% 95%);
+  --sidebar-accent-foreground: hsl(3 78% 52%);
   --sidebar-border: hsl(220 25% 90%);
-  --sidebar-ring: hsl(32 95% 55%);
+  --sidebar-ring: hsl(3 78% 52%);
   --font-sans: 'Inter', 'Noto Sans Arabic', sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
@@ -80,12 +80,12 @@
   --chart-5: hsl(220 30% 30%);
   --sidebar: hsl(220 45% 10%);
   --sidebar-foreground: hsl(210 40% 98%);
-  --sidebar-primary: hsl(32 95% 55%);
-  --sidebar-primary-foreground: hsl(220 45% 12%);
+  --sidebar-primary: hsl(3 78% 52%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
   --sidebar-accent: hsl(220 30% 18%);
-  --sidebar-accent-foreground: hsl(32 95% 55%);
+  --sidebar-accent-foreground: hsl(3 78% 52%);
   --sidebar-border: hsl(220 30% 20%);
-  --sidebar-ring: hsl(32 95% 55%);
+  --sidebar-ring: hsl(3 78% 52%);
 }
 
 @layer base {
@@ -103,38 +103,46 @@
 
 @layer components {
   .hero-banner {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 50%, #0E1729 100%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 50%, #1a3a1a 100%);
   }
 
   .gradient-header {
-    background: linear-gradient(135deg, #0E1729 0%, #152033 100%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 100%);
   }
 
-  .logo-wasel {
+  .logo-tamtom {
     display: flex;
     align-items: center;
     font-weight: 900;
   }
 
-  .logo-wasel .primary {
-    color: #F97316;
+  .logo-tamtom .primary {
+    color: #E53225;
   }
 
-  .orange-gradient {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  .logo-tamtom .secondary {
+    color: #5BB827;
+  }
+
+  .tamtom-gradient {
+    background: linear-gradient(135deg, #E53225 0%, #5BB827 100%);
   }
 
   .red-gradient {
-    background: linear-gradient(135deg, #F97316 0%, #C2410C 100%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 100%);
   }
 
-  /* الشريط العلوي للجوال: تدرج برتقالي بلمسة كحلية لمطابقة الشعار */
+  .green-gradient {
+    background: linear-gradient(135deg, #5BB827 0%, #4a9a20 100%);
+  }
+
+  /* الشريط العلوي: تدرج أحمر طمطوم */
   .header-gradient {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 60%, #0E1729 130%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 60%, #1a3a1a 130%);
   }
 
   .primary-gradient {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 100%);
   }
 
   .navy-gradient {

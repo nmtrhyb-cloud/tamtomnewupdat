@@ -16,6 +16,18 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { MenuItem, Restaurant, Category } from '@shared/schema';
 
+const UNIT_OPTIONS = [
+  { value: 'كجم', label: 'كيلوغرام (كجم)' },
+  { value: 'غرام', label: 'غرام' },
+  { value: 'رطل', label: 'رطل' },
+  { value: 'قطعة', label: 'قطعة' },
+  { value: 'حزمة', label: 'حزمة' },
+  { value: 'علبة', label: 'علبة / صندوق' },
+  { value: 'كرتون', label: 'كرتون' },
+  { value: 'لتر', label: 'لتر' },
+  { value: 'دزينة', label: 'دزينة' },
+];
+
 const EMPTY_FORM = {
   name: '',
   description: '',
@@ -23,6 +35,7 @@ const EMPTY_FORM = {
   originalPrice: '',
   image: '',
   category: '',
+  unit: 'كجم',
   isAvailable: true,
   isSpecialOffer: false,
   restaurantId: '',
@@ -87,6 +100,7 @@ export default function AdminMenuItems() {
       description: data.description.trim(),
       image: data.image.trim(),
       category: data.category.trim(),
+      unit: data.unit?.trim() || 'كجم',
       price: price.toString(),
       originalPrice,
       brand: data.brand.trim() || '',
@@ -178,6 +192,7 @@ export default function AdminMenuItems() {
       originalPrice: item.originalPrice?.toString() || '',
       image: item.image || '',
       category: item.category || '',
+      unit: item.unit || 'كجم',
       isAvailable: item.isAvailable ?? true,
       isSpecialOffer: item.isSpecialOffer ?? false,
       restaurantId: item.restaurantId || '',
@@ -211,6 +226,7 @@ export default function AdminMenuItems() {
         originalPrice: item.originalPrice || '',
         image: item.image,
         category: item.category || '',
+        unit: item.unit || 'كجم',
         isAvailable: field === 'isAvailable' ? !item[field] : item.isAvailable,
         isSpecialOffer: field === 'isSpecialOffer' ? !item[field] : item.isSpecialOffer,
         isFeatured: field === 'isFeatured' ? !item[field] : (item.isFeatured ?? false),
@@ -316,8 +332,8 @@ export default function AdminMenuItems() {
               />
             </div>
 
-            {/* التصنيف والسعر */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* التصنيف والسعر والوحدة */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* التصنيف — مرتبط بجدول categories */}
               <div>
                 <Label htmlFor="category" className="flex items-center gap-1">
@@ -364,6 +380,26 @@ export default function AdminMenuItems() {
                   placeholder="0.00"
                   required
                 />
+              </div>
+
+              {/* وحدة القياس */}
+              <div>
+                <Label htmlFor="unit">وحدة القياس</Label>
+                <Select
+                  value={formData.unit}
+                  onValueChange={(value) => setFormData((p) => ({ ...p, unit: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الوحدة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

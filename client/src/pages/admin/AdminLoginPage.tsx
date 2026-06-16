@@ -116,7 +116,7 @@ export default function AdminLoginPage() {
             <Shield className="h-10 w-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">لوحة التحكم</h1>
-          <p className="text-gray-500 text-sm">نظام إدارة متجر واصل</p>
+          <p className="text-gray-500 text-sm">نظام إدارة متجر طمطوم</p>
         </div>
 
         {/* وضع الإعداد الأولي — عرض عند عدم وجود مديرين */}
@@ -224,7 +224,7 @@ export default function AdminLoginPage() {
         </Card>
 
         <p className="text-center text-gray-400 text-xs mt-6">
-          © 2024 واصل للتوصيل - جميع الحقوق محفوظة
+          © 2024 طمطوم للتوصيل - جميع الحقوق محفوظة
         </p>
       </div>
     </div>

@@ -72,7 +72,7 @@ export default function AdminSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cog className="h-5 w-5" />
-            إعدادات الروابط والدعم (واصل)
+            إعدادات الروابط والدعم (طمطوم)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">

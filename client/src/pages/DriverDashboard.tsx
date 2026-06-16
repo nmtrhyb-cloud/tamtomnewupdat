@@ -490,7 +490,7 @@ function SidebarContent({ activeTab, onTabChange, availableOrders, myOrders }: a
     <div className="h-full flex flex-col">
       <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
         <h2 className="text-xl font-bold text-gray-900">📍 تطبيق السائق</h2>
-        <p className="text-sm text-gray-600 font-bold">نظام واصل للتوصيل</p>
+        <p className="text-sm text-gray-600 font-bold">نظام طمطوم للتوصيل</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

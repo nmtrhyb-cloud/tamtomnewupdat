@@ -328,7 +328,7 @@ export default function CustomerAuthPage() {
           />
         ) : (
           <div className="text-5xl md:text-6xl mb-4 flex justify-center font-black">
-            <span className="text-[#ec3714]">واصل</span>
+            <span className="text-[#ec3714]">طمطوم</span>
           </div>
         )}
         <p className="text-muted-foreground font-bold">لخدمات التوصيل</p>

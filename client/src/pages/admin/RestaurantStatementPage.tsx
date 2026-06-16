@@ -377,7 +377,7 @@ export default function RestaurantStatementPage() {
 
         {/* توقيع المستند */}
         <div className="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-400 print:block hidden">
-          <p>كشف الحساب تم إنشاؤه آلياً من نظام واصل - {new Date().toLocaleString('ar-YE')}</p>
+          <p>كشف الحساب تم إنشاؤه آلياً من نظام طمطوم - {new Date().toLocaleString('ar-YE')}</p>
         </div>
       </div>
 

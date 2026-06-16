@@ -240,7 +240,7 @@ export default function Home() {
               key={product.id} 
               item={product} 
               restaurantId={product.restaurantId || ''} 
-              restaurantName="واصل"
+              restaurantName="طمطوم"
             />
           ))}
         </div>

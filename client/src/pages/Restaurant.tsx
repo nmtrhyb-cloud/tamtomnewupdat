@@ -80,7 +80,7 @@ export default function Restaurant() {
   const orderBlocked = !companyOpen || !restaurantStatus.isOpen;
   let blockMessage = '';
   if (!companyOpen) {
-    blockMessage = `واصل مغلق حالياً. أوقات الدوام من ${openingTime} حتى ${closingTime}`;
+    blockMessage = `طمطوم مغلق حالياً. أوقات الدوام من ${openingTime} حتى ${closingTime}`;
   } else if (!restaurantStatus.isOpen) {
     blockMessage = `هذا المتجر مغلق حالياً. ${restaurantStatus.message}`;
   }

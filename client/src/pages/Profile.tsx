@@ -121,7 +121,7 @@ export default function Profile() {
   const supportWhatsapp = getSetting('support_whatsapp', '');
   const supportPhone = getSetting('support_phone', '');
   const shareUrl = getSetting('share_url', '');
-  const shareText = getSetting('share_text', 'انضم إلى تطبيق واصل الآن!');
+  const shareText = getSetting('share_text', 'انضم إلى تطبيق طمطوم الآن!');
 
   const profileStats = [
     { 
@@ -168,7 +168,7 @@ export default function Profile() {
       testId: 'profile-share',
       onClick: () => {
         if (navigator.share) {
-          navigator.share({ title: 'واصل', text: shareText, url: shareUrl });
+          navigator.share({ title: 'طمطوم', text: shareText, url: shareUrl });
         } else {
           toast({ title: 'نسخ الرابط', description: shareUrl });
         }
@@ -181,7 +181,7 @@ export default function Profile() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex flex-col items-center mb-8 border-b pb-6">
-          <h1 className="text-4xl font-black uppercase tracking-tighter text-primary">واصل</h1>
+          <h1 className="text-4xl font-black uppercase tracking-tighter text-primary">طمطوم</h1>
           <p className="text-sm font-bold text-muted-foreground mt-1">لخدمات التوصيل</p>
         </div>
         

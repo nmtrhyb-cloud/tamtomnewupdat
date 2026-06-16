@@ -94,16 +94,6 @@ export default function AdminBusinessHours() {
       return;
     }
 
-    // التحقق من أن وقت الفتح قبل وقت الإغلاق
-    if (formData.opening_time >= formData.closing_time) {
-      toast({
-        title: "خطأ في الأوقات",
-        description: "وقت الفتح يجب أن يكون قبل وقت الإغلاق",
-        variant: "destructive"
-      });
-      return;
-    }
-
     updateBusinessHours.mutate(formData);
   };
 

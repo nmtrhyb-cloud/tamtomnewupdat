@@ -47,7 +47,7 @@ export default function RestaurantSections() {
       
       // Auto-select Tamtom store
       if (data.length > 0) {
-        const tamtomStore = data.find((r: any) => r.name.includes('واصل')) || data[0];
+        const tamtomStore = data.find((r: any) => r.name.includes('طمطوم')) || data[0];
         setSelectedRestaurant(tamtomStore.id);
       }
     } catch (error) {

@@ -79,7 +79,7 @@ export default function CartPage() {
   const showBankTransfer = getSetting('show_bank_transfer', 'false') === 'true';
   const checkoutButtonText = getSetting('cart_checkout_button_text', 'تأكيد الطلب');
   const checkoutNote = getSetting('cart_checkout_note', '');
-  const appName = getSetting('app_name', 'واصل');
+  const appName = getSetting('app_name', 'طمطوم');
 
   // بناء قائمة طرق الدفع بناءً على الإعدادات والـ API
   const availablePaymentMethods = useMemo(() => {
