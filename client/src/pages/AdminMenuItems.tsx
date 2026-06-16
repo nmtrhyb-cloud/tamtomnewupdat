@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Package, Save, X, Search, Store, Layers } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Save, X, Search, Tag, Store } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,26 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { MenuItem, Restaurant } from '@shared/schema';
+import type { MenuItem, Restaurant, Category } from '@shared/schema';
+
+const EMPTY_FORM = {
+  name: '',
+  description: '',
+  price: '',
+  originalPrice: '',
+  image: '',
+  category: '',
+  isAvailable: true,
+  isSpecialOffer: false,
+  restaurantId: '',
+  brand: '',
+  sizes: '',
+  colors: '',
+  salesCount: '0',
+  rating: '5',
+  isFeatured: false,
+  isNew: true,
+};
 
 export default function AdminMenuItems() {
   const { toast } = useToast();
@@ -22,42 +41,25 @@ export default function AdminMenuItems() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRestaurantFilter, setSelectedRestaurantFilter] = useState<string>('all');
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    originalPrice: '',
-    image: '',
-    category: '',
-    isAvailable: true,
-    isSpecialOffer: false,
-    restaurantId: '',
-    brand: '',
-    sizes: '',
-    colors: '',
-    salesCount: '0',
-    rating: '5',
-    isFeatured: false,
-    isNew: true,
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
+
+  const { data: categoriesData = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/categories');
+      return res.json();
+    },
   });
 
-  const { data: restaurantsData } = useQuery<{restaurants: Restaurant[]}>({
+  const activeCategories = categoriesData.filter((c: Category) => c.isActive);
+
+  const { data: restaurantsData } = useQuery<{ restaurants: Restaurant[] }>({
     queryKey: ['/api/admin/restaurants'],
   });
 
   const restaurants = restaurantsData?.restaurants || [];
-
-  const { data: restaurantSections = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/restaurants', formData.restaurantId, 'sections'],
-    queryFn: async () => {
-      if (!formData.restaurantId) return [];
-      const res = await apiRequest('GET', `/api/admin/restaurants/${formData.restaurantId}/sections`);
-      return res.json();
-    },
-    enabled: !!formData.restaurantId,
-  });
 
   const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
     queryKey: ['/api/admin/menu-items'],
@@ -68,51 +70,56 @@ export default function AdminMenuItems() {
     },
   });
 
+  const buildSubmitData = (data: typeof formData) => {
+    const price = parseFloat(data.price);
+    if (isNaN(price) || price <= 0) throw new Error('سعر المنتج يجب أن يكون رقماً أكبر من صفر');
+
+    let originalPrice: string | null = null;
+    if (data.originalPrice?.trim()) {
+      const op = parseFloat(data.originalPrice);
+      if (isNaN(op) || op <= 0) throw new Error('السعر الأصلي يجب أن يكون رقماً أكبر من صفر');
+      originalPrice = op.toString();
+    }
+
+    return {
+      ...data,
+      name: data.name.trim(),
+      description: data.description.trim(),
+      image: data.image.trim(),
+      category: data.category.trim(),
+      price: price.toString(),
+      originalPrice,
+      brand: data.brand.trim() || '',
+      sizes: data.sizes.trim(),
+      colors: data.colors.trim(),
+      salesCount: parseInt(data.salesCount) || 0,
+      rating: parseFloat(data.rating) || 5,
+      restaurantId: data.restaurantId || null,
+    };
+  };
+
   const createMenuItemMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!data.name.trim()) throw new Error('اسم المنتج مطلوب');
       if (!data.price.trim()) throw new Error('سعر المنتج مطلوب');
       if (!data.image.trim()) throw new Error('صورة المنتج مطلوبة');
-      if (!data.category.trim()) throw new Error('قسم المنتج مطلوب');
-
-      const price = parseFloat(data.price);
-      if (isNaN(price) || price <= 0) throw new Error('سعر المنتج يجب أن يكون رقم صحيح أكبر من صفر');
-
-      let originalPrice = null;
-      if (data.originalPrice && data.originalPrice.trim()) {
-        originalPrice = parseFloat(data.originalPrice);
-        if (isNaN(originalPrice) || originalPrice <= 0) throw new Error('السعر الأصلي يجب أن يكون رقم صحيح أكبر من صفر');
-      }
-
-      const submitData = {
-        ...data,
-        name: data.name.trim(),
-        description: data.description.trim(),
-        image: data.image.trim(),
-        category: data.category.trim(),
-        price: price.toString(),
-        originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || '',
-        sizes: data.sizes.trim(),
-        colors: data.colors.trim(),
-        salesCount: parseInt(data.salesCount) || 0,
-        rating: parseFloat(data.rating) || 5,
-        isFeatured: data.isFeatured,
-        isNew: data.isNew,
-        restaurantId: data.restaurantId || restaurants[0]?.id || '',
-      };
-      
+      if (!data.category.trim()) throw new Error('التصنيف مطلوب');
+      const submitData = buildSubmitData(data);
       const response = await apiRequest('POST', '/api/admin/menu-items', submitData);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'فشل في إضافة المنتج');
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
-      toast({ title: "تم إضافة المنتج", description: "تم إضافة المنتج الجديد بنجاح" });
+      toast({ title: 'تم إضافة المنتج', description: 'تم إضافة المنتج الجديد بنجاح' });
       resetForm();
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "خطأ في إضافة المنتج", description: error.message });
+      toast({ variant: 'destructive', title: 'خطأ في إضافة المنتج', description: error.message });
     },
   });
 
@@ -121,101 +128,65 @@ export default function AdminMenuItems() {
       if (!data.name.trim()) throw new Error('اسم المنتج مطلوب');
       if (!data.price.trim()) throw new Error('سعر المنتج مطلوب');
       if (!data.image.trim()) throw new Error('صورة المنتج مطلوبة');
-      if (!data.category.trim()) throw new Error('قسم المنتج مطلوب');
-
-      const price = parseFloat(data.price);
-      if (isNaN(price) || price <= 0) throw new Error('سعر المنتج يجب أن يكون رقم صحيح أكبر من صفر');
-
-      let originalPrice = null;
-      if (data.originalPrice && data.originalPrice.trim()) {
-        originalPrice = parseFloat(data.originalPrice);
-        if (isNaN(originalPrice) || originalPrice <= 0) throw new Error('السعر الأصلي يجب أن يكون رقم صحيح أكبر من صفر');
-      }
-
-      const submitData = {
-        ...data,
-        name: data.name.trim(),
-        description: data.description.trim(),
-        image: data.image.trim(),
-        category: data.category.trim(),
-        price: price.toString(),
-        originalPrice: originalPrice ? originalPrice.toString() : null,
-        brand: data.brand.trim() || '',
-        sizes: data.sizes.trim(),
-        colors: data.colors.trim(),
-        salesCount: parseInt(data.salesCount) || 0,
-        rating: parseFloat(data.rating) || 5,
-        isFeatured: data.isFeatured,
-        isNew: data.isNew,
-        restaurantId: data.restaurantId || restaurants[0]?.id || '',
-      };
-      
+      if (!data.category.trim()) throw new Error('التصنيف مطلوب');
+      const submitData = buildSubmitData(data);
       const response = await apiRequest('PUT', `/api/admin/menu-items/${id}`, submitData);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'فشل في تحديث المنتج');
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
-      toast({ title: "تم تحديث المنتج", description: "تم تحديث المنتج بنجاح" });
+      toast({ title: 'تم تحديث المنتج', description: 'تم تحديث المنتج بنجاح' });
       resetForm();
       setEditingItem(null);
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "خطأ في تحديث المنتج", description: error.message });
+      toast({ variant: 'destructive', title: 'خطأ في تحديث المنتج', description: error.message });
     },
   });
 
   const deleteMenuItemMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest('DELETE', `/api/admin/menu-items/${id}`);
+      if (!response.ok) throw new Error('فشل في حذف المنتج');
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
-      toast({ title: "تم حذف المنتج", description: "تم حذف المنتج بنجاح" });
+      toast({ title: 'تم حذف المنتج', description: 'تم حذف المنتج بنجاح' });
+    },
+    onError: (error: Error) => {
+      toast({ variant: 'destructive', title: 'خطأ في الحذف', description: error.message });
     },
   });
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      price: '',
-      originalPrice: '',
-      image: '',
-      category: '',
-      isAvailable: true,
-      isSpecialOffer: false,
-      restaurantId: restaurants[0]?.id || '',
-      brand: '',
-      sizes: '',
-      colors: '',
-      salesCount: '0',
-      rating: '5',
-      isFeatured: false,
-      isNew: true,
-    });
+    setFormData({ ...EMPTY_FORM });
     setEditingItem(null);
   };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setFormData({
-      name: item.name,
+      name: item.name || '',
       description: item.description || '',
       price: item.price?.toString() || '',
       originalPrice: item.originalPrice?.toString() || '',
-      image: item.image,
-      category: item.category,
-      isAvailable: item.isAvailable,
-      isSpecialOffer: item.isSpecialOffer,
-      restaurantId: item.restaurantId || restaurants[0]?.id || '',
+      image: item.image || '',
+      category: item.category || '',
+      isAvailable: item.isAvailable ?? true,
+      isSpecialOffer: item.isSpecialOffer ?? false,
+      restaurantId: item.restaurantId || '',
       brand: item.brand || '',
       sizes: item.sizes || '',
       colors: item.colors || '',
       salesCount: item.salesCount?.toString() || '0',
       rating: item.rating?.toString() || '5',
-      isFeatured: item.isFeatured || false,
+      isFeatured: item.isFeatured ?? false,
       isNew: item.isNew ?? true,
     });
     setIsDialogOpen(true);
@@ -223,52 +194,26 @@ export default function AdminMenuItems() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name.trim() || !formData.price) {
-      toast({ title: "خطأ", description: "يرجى إدخال جميع البيانات المطلوبة", variant: "destructive" });
-      return;
-    }
-
-    const price = parseFloat(formData.price);
-    if (isNaN(price) || price <= 0) {
-      toast({ title: "خطأ", description: "يرجى إدخال سعر صحيح للمنتج", variant: "destructive" });
-      return;
-    }
-
-    if (formData.originalPrice) {
-      const originalPrice = parseFloat(formData.originalPrice);
-      if (isNaN(originalPrice) || originalPrice <= 0) {
-        toast({ title: "خطأ", description: "يرجى إدخال السعر الأصلي صحيح", variant: "destructive" });
-        return;
-      }
-    }
-
-    const dataWithRestaurant = { 
-      ...formData, 
-      restaurantId: formData.restaurantId || restaurants[0]?.id || '',
-      originalPrice: formData.originalPrice.trim() || ''
-    };
-
     if (editingItem) {
-      updateMenuItemMutation.mutate({ id: editingItem.id, data: dataWithRestaurant });
+      updateMenuItemMutation.mutate({ id: editingItem.id, data: formData });
     } else {
-      createMenuItemMutation.mutate(dataWithRestaurant);
+      createMenuItemMutation.mutate(formData);
     }
   };
 
   const toggleItemStatus = (item: any, field: 'isAvailable' | 'isSpecialOffer' | 'isFeatured' | 'isNew') => {
     updateMenuItemMutation.mutate({
       id: item.id,
-      data: { 
+      data: {
         name: item.name,
         description: item.description || '',
         price: item.price || '',
         originalPrice: item.originalPrice || '',
         image: item.image,
-        category: item.category,
+        category: item.category || '',
         isAvailable: field === 'isAvailable' ? !item[field] : item.isAvailable,
         isSpecialOffer: field === 'isSpecialOffer' ? !item[field] : item.isSpecialOffer,
-        isFeatured: field === 'isFeatured' ? !item[field] : (item.isFeatured || false),
+        isFeatured: field === 'isFeatured' ? !item[field] : (item.isFeatured ?? false),
         isNew: field === 'isNew' ? !item[field] : (item.isNew ?? true),
         restaurantId: item.restaurantId || '',
         brand: item.brand || '',
@@ -276,7 +221,7 @@ export default function AdminMenuItems() {
         colors: item.colors || '',
         salesCount: item.salesCount?.toString() || '0',
         rating: item.rating?.toString() || '5',
-      }
+      },
     });
   };
 
@@ -286,20 +231,25 @@ export default function AdminMenuItems() {
     return isNaN(num) ? 0 : num;
   };
 
+  const getCategoryName = (catValue: string) => {
+    const found = activeCategories.find((c) => c.name === catValue);
+    return found?.name || catValue;
+  };
+
+  const getRestaurantName = (id: string) => restaurants.find((r) => r.id === id)?.name || '';
+
   const filteredMenuItems = menuItems?.filter((item) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRestaurant = selectedRestaurantFilter === 'all' || item.restaurantId === selectedRestaurantFilter;
-    return matchesSearch && matchesRestaurant;
+    const matchesCategory =
+      selectedCategoryFilter === 'all' || item.category === selectedCategoryFilter;
+    return matchesSearch && matchesCategory;
   });
 
-  const getRestaurantName = (id: string) => {
-    return restaurants.find(r => r.id === id)?.name || '';
-  };
-
-  const activeSections = restaurantSections.filter((s: any) => s.isActive);
+  const isPending = createMenuItemMutation.isPending || updateMenuItemMutation.isPending;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -309,7 +259,7 @@ export default function AdminMenuItems() {
             <Package className="h-7 w-7 text-primary" />
             <div>
               <h1 className="text-xl font-bold text-foreground">إدارة المنتجات</h1>
-              <p className="text-sm text-muted-foreground">إدارة منتجات جميع المتاجر والمطاعم</p>
+              <p className="text-sm text-muted-foreground">إضافة وتعديل المنتجات حسب التصنيف</p>
             </div>
           </div>
           <Button
@@ -323,91 +273,85 @@ export default function AdminMenuItems() {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* ───── نافذة الإضافة / التعديل ───── */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setIsDialogOpen(open); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
-            <DialogTitle>
-              {editingItem ? 'تعديل المنتج' : 'إضافة منتج جديد'}
-            </DialogTitle>
+            <DialogTitle>{editingItem ? 'تعديل المنتج' : 'إضافة منتج جديد'}</DialogTitle>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label htmlFor="name">اسم المنتج *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="أدخل اسم المنتج"
-                  required
-                />
-              </div>
+            {/* اسم المنتج */}
+            <div>
+              <Label htmlFor="name">اسم المنتج *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                placeholder="أدخل اسم المنتج"
+                required
+              />
             </div>
 
+            {/* الوصف */}
             <div>
               <Label htmlFor="description">وصف المنتج</Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
                 placeholder="وصف المنتج"
                 rows={2}
               />
             </div>
 
+            {/* صورة المنتج */}
             <div>
               <ImageUpload
                 label="صورة المنتج *"
                 value={formData.image}
-                onChange={(url) => setFormData(prev => ({ ...prev, image: url }))}
+                onChange={(url) => setFormData((p) => ({ ...p, image: url }))}
                 bucket="menu-items"
                 required={true}
               />
             </div>
 
+            {/* التصنيف والسعر */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* التصنيف — مرتبط بجدول categories */}
               <div>
-                <Label htmlFor="category">
-                  <span className="flex items-center gap-1">
-                    <Layers className="h-4 w-4" />
-                    {activeSections.length > 0 ? 'قسم المنتج (من أقسام المتجر)' : 'قسم المنتج'}
-                  </span>
+                <Label htmlFor="category" className="flex items-center gap-1">
+                  <Tag className="h-4 w-4" />
+                  التصنيف *
                 </Label>
-                {activeSections.length > 0 ? (
+                {activeCategories.length > 0 ? (
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                    onValueChange={(value) => setFormData((p) => ({ ...p, category: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر القسم" />
+                      <SelectValue placeholder="اختر التصنيف" />
                     </SelectTrigger>
                     <SelectContent>
-                      {activeSections.map((section: any) => (
-                        <SelectItem key={section.id} value={section.name}>
-                          {section.name}
+                      {activeCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.icon ? `${cat.icon} ` : ''}{cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="space-y-2">
-                    <Input
-                      id="category"
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      placeholder={formData.restaurantId ? "لا توجد أقسام - أدخل اسم القسم يدوياً" : "اختر المتجر أولاً ثم أدخل القسم"}
-                      required
-                    />
-                    {formData.restaurantId && (
-                      <p className="text-xs text-amber-600">
-                        💡 لم يتم إضافة أقسام لهذا المتجر بعد. يمكنك إدارة الأقسام من صفحة المتاجر.
-                      </p>
-                    )}
-                  </div>
+                  <Input
+                    id="category"
+                    value={formData.category}
+                    onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))}
+                    placeholder="أدخل اسم التصنيف"
+                    required
+                  />
                 )}
               </div>
 
+              {/* السعر */}
               <div>
                 <Label htmlFor="price">السعر (ريال) *</Label>
                 <Input
@@ -416,23 +360,53 @@ export default function AdminMenuItems() {
                   min="0"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, price: e.target.value }))}
                   placeholder="0.00"
                   required
                 />
               </div>
             </div>
 
+            {/* المتجر — اختياري */}
+            <div>
+              <Label htmlFor="restaurantId" className="flex items-center gap-1">
+                <Store className="h-4 w-4" />
+                المتجر (اختياري)
+              </Label>
+              <Select
+                value={formData.restaurantId || 'none'}
+                onValueChange={(value) =>
+                  setFormData((p) => ({ ...p, restaurantId: value === 'none' ? '' : value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="بدون متجر محدد" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون متجر محدد</SelectItem>
+                  {restaurants.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                المنتج سيظهر في التصنيف المختار بغض النظر عن المتجر
+              </p>
+            </div>
+
+            {/* السعر الأصلي، المبيعات، التقييم */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="originalPrice">السعر الأصلي</Label>
+                <Label htmlFor="originalPrice">السعر الأصلي (قبل الخصم)</Label>
                 <Input
                   id="originalPrice"
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.originalPrice}
-                  onChange={(e) => setFormData(prev => ({ ...prev, originalPrice: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, originalPrice: e.target.value }))}
                   placeholder="0.00"
                 />
               </div>
@@ -443,7 +417,7 @@ export default function AdminMenuItems() {
                   type="number"
                   min="0"
                   value={formData.salesCount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, salesCount: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, salesCount: e.target.value }))}
                 />
               </div>
               <div>
@@ -455,62 +429,44 @@ export default function AdminMenuItems() {
                   max="5"
                   step="0.1"
                   value={formData.rating}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rating: e.target.value }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, rating: e.target.value }))}
                 />
               </div>
             </div>
 
+            {/* الحالات */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="isAvailable">متوفر</Label>
-                <Switch
-                  id="isAvailable"
-                  checked={formData.isAvailable}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isAvailable: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="isSpecialOffer">عرض خاص</Label>
-                <Switch
-                  id="isSpecialOffer"
-                  checked={formData.isSpecialOffer}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isSpecialOffer: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="isFeatured">مميز</Label>
-                <Switch
-                  id="isFeatured"
-                  checked={formData.isFeatured}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isFeatured: checked }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="isNew">جديد</Label>
-                <Switch
-                  id="isNew"
-                  checked={formData.isNew}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isNew: checked }))}
-                />
-              </div>
+              {[
+                { key: 'isAvailable', label: 'متوفر' },
+                { key: 'isSpecialOffer', label: 'عرض خاص' },
+                { key: 'isFeatured', label: 'مميز' },
+                { key: 'isNew', label: 'جديد' },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <Label htmlFor={key}>{label}</Label>
+                  <Switch
+                    id={key}
+                    checked={formData[key as keyof typeof formData] as boolean}
+                    onCheckedChange={(checked) => setFormData((p) => ({ ...p, [key]: checked }))}
+                  />
+                </div>
+              ))}
             </div>
 
+            {/* أزرار */}
             <div className="flex gap-2 pt-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="flex-1 gap-2"
-                disabled={createMenuItemMutation.isPending || updateMenuItemMutation.isPending}
+                disabled={isPending}
                 data-testid="button-save-menu-item"
               >
                 <Save className="h-4 w-4" />
-                {editingItem ? 'تحديث' : 'إضافة'}
+                {isPending ? 'جاري الحفظ...' : editingItem ? 'تحديث' : 'إضافة'}
               </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => { resetForm(); setIsDialogOpen(false); }}
                 data-testid="button-cancel-menu-item"
               >
@@ -522,7 +478,8 @@ export default function AdminMenuItems() {
         </DialogContent>
       </Dialog>
 
-      <Card>
+      {/* ───── شريط البحث والفلترة ───── */}
+      <Card className="m-4">
         <CardContent className="p-4">
           <div className="flex gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
@@ -534,14 +491,16 @@ export default function AdminMenuItems() {
                 className="pr-10"
               />
             </div>
-            <Select value={selectedRestaurantFilter} onValueChange={setSelectedRestaurantFilter}>
+            <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="جميع المتاجر" />
+                <SelectValue placeholder="جميع التصنيفات" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع المتاجر</SelectItem>
-                {restaurants.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                <SelectItem value="all">جميع التصنيفات</SelectItem>
+                {activeCategories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -549,7 +508,8 @@ export default function AdminMenuItems() {
         </CardContent>
       </Card>
 
-      <div className="p-4 space-y-3">
+      {/* ───── قائمة المنتجات ───── */}
+      <div className="px-4 pb-4 space-y-3">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
         ) : filteredMenuItems?.length === 0 ? (
@@ -578,31 +538,34 @@ export default function AdminMenuItems() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-semibold text-foreground">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{item.description}</p>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground truncate">{item.description}</p>
+                        )}
                         <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {item.category && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Tag className="h-3 w-3" />
+                              {getCategoryName(item.category)}
+                            </span>
+                          )}
                           {item.restaurantId && (
                             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                               <Store className="h-3 w-3" />
                               {getRestaurantName(item.restaurantId)}
                             </span>
                           )}
-                          {item.category && (
-                            <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Layers className="h-3 w-3" />
-                              {item.category}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="font-bold text-primary">{parseDecimal(item.price).toFixed(2)} ريال</div>
-                        {item.originalPrice && (
+                        {item.originalPrice && parseDecimal(item.originalPrice) > 0 && (
                           <div className="text-xs text-muted-foreground line-through">
                             {parseDecimal(item.originalPrice).toFixed(2)} ريال
                           </div>
                         )}
                       </div>
                     </div>
+
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       <div className="flex items-center gap-1">
                         <Switch
@@ -613,10 +576,11 @@ export default function AdminMenuItems() {
                         <span className="text-xs">{item.isAvailable ? 'متوفر' : 'غير متوفر'}</span>
                       </div>
                       {item.isSpecialOffer && <Badge variant="secondary" className="text-xs">عرض خاص</Badge>}
-                      {item.isFeatured && <Badge className="text-xs bg-amber-100 text-amber-800">مميز</Badge>}
-                      {item.isNew && <Badge className="text-xs bg-green-100 text-green-800">جديد</Badge>}
+                      {item.isFeatured && <Badge className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-100">مميز</Badge>}
+                      {item.isNew && <Badge className="text-xs bg-green-100 text-green-800 hover:bg-green-100">جديد</Badge>}
                     </div>
                   </div>
+
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <Button
                       variant="ghost"

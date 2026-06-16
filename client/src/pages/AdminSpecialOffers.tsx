@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Plus, Edit, Trash2, Save, X, Percent } from 'lucide-react';
+import { ArrowRight, Plus, Edit, Trash2, Save, X, Percent, Tag, Store } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { SpecialOffer, Restaurant } from '@shared/schema';
+import type { SpecialOffer, Restaurant, Category } from '@shared/schema';
 
 type DiscountType = 'percent' | 'amount' | 'none';
-type SectionMode = 'auto' | 'existing';
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  image: '',
+  discountType: 'percent' as DiscountType,
+  discountPercent: '',
+  discountAmount: '',
+  minimumOrder: '',
+  validUntil: '',
+  showBadge: true,
+  badgeText1: 'طازج يومياً',
+  badgeText2: 'عروض حصرية',
+  isActive: true,
+  restaurantId: '',
+  categoryId: '',
+};
 
 export function AdminSpecialOffers() {
   const [, setLocation] = useLocation();
@@ -30,53 +46,31 @@ export function AdminSpecialOffers() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    image: '',
-    discountType: 'percent' as DiscountType,
-    discountPercent: '',
-    discountAmount: '',
-    minimumOrder: '',
-    validUntil: '',
-    showBadge: true,
-    badgeText1: 'طازج يومياً',
-    badgeText2: 'عروض حصرية',
-    isActive: true,
-    restaurantId: '',
-    sectionMode: 'auto' as SectionMode,
-    sectionId: '',
-  });
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
 
   // العروض الحالية
   const { data: offers, isLoading } = useQuery<any[]>({
     queryKey: ['/api/special-offers'],
   });
 
-  // قائمة المتاجر
+  // قائمة التصنيفات الرئيسية
+  const { data: categoriesData = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      const res = await fetch('/api/categories');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+  const activeCategories = categoriesData.filter((c) => c.isActive);
+
+  // قائمة المتاجر (اختيارية)
   const { data: restaurantsResp } = useQuery<{ restaurants: Restaurant[] } | Restaurant[]>({
     queryKey: ['/api/admin/restaurants'],
   });
   const restaurants: Restaurant[] = Array.isArray(restaurantsResp)
     ? (restaurantsResp as Restaurant[])
     : (restaurantsResp?.restaurants || []);
-
-  // أقسام المتجر المختار
-  const { data: sectionsData = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/restaurants', formData.restaurantId, 'sections'],
-    queryFn: async () => {
-      if (!formData.restaurantId) return [];
-      const res = await fetch(`/api/admin/restaurants/${formData.restaurantId}/sections`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!formData.restaurantId,
-  });
-
-  // عند تغيير المتجر، نظّف القسم المختار
-  useEffect(() => {
-    setFormData((p) => ({ ...p, sectionId: '' }));
-  }, [formData.restaurantId]);
 
   // إنشاء عرض
   const createOfferMutation = useMutation({
@@ -88,12 +82,13 @@ export function AdminSpecialOffers() {
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err?.error || 'Failed to create offer');
+        throw new Error(err?.error || err?.details?.join?.(', ') || 'فشل في إنشاء العرض');
       }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/special-offers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/special-offers'] });
       setShowAddForm(false);
       resetForm();
       toast({ title: 'تم إنشاء العرض بنجاح' });
@@ -113,13 +108,15 @@ export function AdminSpecialOffers() {
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err?.error || 'Failed to update offer');
+        throw new Error(err?.error || err?.details?.join?.(', ') || 'فشل في تحديث العرض');
       }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/special-offers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/special-offers'] });
       setEditingOffer(null);
+      setShowAddForm(false);
       resetForm();
       toast({ title: 'تم تحديث العرض بنجاح' });
     },
@@ -132,10 +129,11 @@ export function AdminSpecialOffers() {
   const deleteOfferMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/admin/special-offers/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete offer');
+      if (!response.ok) throw new Error('فشل في حذف العرض');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/special-offers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/special-offers'] });
       toast({ title: 'تم حذف العرض بنجاح' });
     },
     onError: () => {
@@ -144,40 +142,25 @@ export function AdminSpecialOffers() {
   });
 
   const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      image: '',
-      discountType: 'percent',
-      discountPercent: '',
-      discountAmount: '',
-      minimumOrder: '',
-      validUntil: '',
-      showBadge: true,
-      badgeText1: 'طازج يومياً',
-      badgeText2: 'عروض حصرية',
-      isActive: true,
-      restaurantId: '',
-      sectionMode: 'auto',
-      sectionId: '',
-    });
+    setFormData({ ...EMPTY_FORM });
+    setEditingOffer(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.restaurantId) {
-      toast({ title: 'يرجى اختيار المتجر', variant: 'destructive' });
+    if (!formData.title.trim()) {
+      toast({ title: 'يرجى إدخال عنوان العرض', variant: 'destructive' });
       return;
     }
-    if (formData.sectionMode === 'existing' && !formData.sectionId) {
-      toast({ title: 'يرجى اختيار قسم موجود من قائمة المتجر', variant: 'destructive' });
+    if (!formData.description.trim()) {
+      toast({ title: 'يرجى إدخال وصف العرض', variant: 'destructive' });
       return;
     }
 
     const dataToSubmit: any = {
-      title: formData.title,
-      description: formData.description,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       image: formData.image || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
       discountPercent:
         formData.discountType === 'percent' && formData.discountPercent
@@ -193,9 +176,8 @@ export function AdminSpecialOffers() {
       badgeText1: formData.badgeText1,
       badgeText2: formData.badgeText2,
       isActive: formData.isActive,
-      restaurantId: formData.restaurantId,
-      sectionId: formData.sectionMode === 'existing' ? formData.sectionId : null,
-      autoCreateOffersSection: formData.sectionMode === 'auto',
+      restaurantId: formData.restaurantId || null,
+      categoryId: formData.categoryId || null,
     };
 
     if (editingOffer) {
@@ -205,7 +187,7 @@ export function AdminSpecialOffers() {
     }
   };
 
-  const startEdit = (offer: SpecialOffer & { sectionId?: string | null }) => {
+  const startEdit = (offer: any) => {
     setEditingOffer(offer);
     const discountType: DiscountType = offer.discountPercent
       ? 'percent'
@@ -213,7 +195,7 @@ export function AdminSpecialOffers() {
       ? 'amount'
       : 'none';
     setFormData({
-      title: offer.title,
+      title: offer.title || '',
       description: offer.description || '',
       image: offer.image || '',
       discountType,
@@ -224,12 +206,12 @@ export function AdminSpecialOffers() {
       showBadge: offer.showBadge ?? true,
       badgeText1: offer.badgeText1 || 'طازج يومياً',
       badgeText2: offer.badgeText2 || 'عروض حصرية',
-      isActive: offer.isActive,
-      restaurantId: (offer as any).restaurantId || '',
-      sectionMode: (offer as any).sectionId ? 'existing' : 'auto',
-      sectionId: (offer as any).sectionId || '',
+      isActive: offer.isActive ?? true,
+      restaurantId: offer.restaurantId || '',
+      categoryId: offer.categoryId || '',
     });
     setShowAddForm(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
@@ -238,21 +220,16 @@ export function AdminSpecialOffers() {
     resetForm();
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('ar-YE', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  const formatDate = (date: string | Date) =>
+    new Date(date).toLocaleDateString('ar-YE', { year: 'numeric', month: 'short', day: 'numeric' });
 
-  const getDiscountText = (offer: SpecialOffer) => {
+  const getDiscountText = (offer: any) => {
     if (offer.discountPercent) return `${offer.discountPercent}%`;
     if (offer.discountAmount) return `${offer.discountAmount} ريال`;
-    return 'بدون خصم';
+    return 'عرض ترويجي';
   };
 
-  const getOfferStatus = (offer: SpecialOffer) => {
+  const getOfferStatus = (offer: any) => {
     if (!offer.isActive) return { text: 'غير نشط', color: 'bg-gray-100 text-gray-700' };
     const now = new Date();
     const validUntil = offer.validUntil ? new Date(offer.validUntil) : null;
@@ -262,9 +239,16 @@ export function AdminSpecialOffers() {
   };
 
   const getRestaurantName = (id?: string | null) => {
-    if (!id) return 'كل المتاجر';
-    return restaurants.find((r) => r.id === id)?.name || 'متجر غير معروف';
+    if (!id) return null;
+    return restaurants.find((r) => r.id === id)?.name || null;
   };
+
+  const getCategoryName = (id?: string | null) => {
+    if (!id) return null;
+    return activeCategories.find((c) => c.id === id)?.name || null;
+  };
+
+  const isPending = createOfferMutation.isPending || updateOfferMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -275,7 +259,7 @@ export function AdminSpecialOffers() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">إدارة العروض الخاصة</h1>
-            <p className="text-muted-foreground">إنشاء وإدارة عروض الخصم لكل متجر</p>
+            <p className="text-muted-foreground">إنشاء وإدارة عروض الخصم — مرتبطة بتصنيف أو عامة</p>
           </div>
         </div>
 
@@ -293,84 +277,19 @@ export function AdminSpecialOffers() {
         </Button>
       </div>
 
+      {/* ───── فورم الإضافة / التعديل ───── */}
       {(showAddForm || editingOffer) && (
         <Card>
           <CardHeader>
             <CardTitle>{editingOffer ? 'تعديل العرض' : 'إضافة عرض جديد'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* اختيار المتجر والقسم */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/20">
-                <div>
-                  <Label>المتجر *</Label>
-                  <Select
-                    value={formData.restaurantId}
-                    onValueChange={(v) => setFormData({ ...formData, restaurantId: v })}
-                  >
-                    <SelectTrigger data-testid="select-restaurant">
-                      <SelectValue placeholder="اختر المتجر" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {restaurants.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
 
-                <div>
-                  <Label>قسم المتجر *</Label>
-                  <Select
-                    value={formData.sectionMode}
-                    onValueChange={(v: SectionMode) => setFormData({ ...formData, sectionMode: v })}
-                  >
-                    <SelectTrigger data-testid="select-section-mode">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">إنشاء قسم "العروض" تلقائياً</SelectItem>
-                      <SelectItem value="existing">اختيار قسم موجود</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.sectionMode === 'existing' && (
-                  <div className="md:col-span-2">
-                    <Label>اختر القسم</Label>
-                    <Select
-                      value={formData.sectionId}
-                      onValueChange={(v) => setFormData({ ...formData, sectionId: v })}
-                      disabled={!formData.restaurantId || sectionsData.length === 0}
-                    >
-                      <SelectTrigger data-testid="select-section">
-                        <SelectValue
-                          placeholder={
-                            !formData.restaurantId
-                              ? 'اختر المتجر أولاً'
-                              : sectionsData.length === 0
-                              ? 'لا توجد أقسام لهذا المتجر'
-                              : 'اختر القسم'
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sectionsData.map((s: any) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
+              {/* العنوان والوصف */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="title">عنوان العرض</Label>
+                  <Label htmlFor="title">عنوان العرض *</Label>
                   <Input
                     id="title"
                     value={formData.title}
@@ -380,7 +299,6 @@ export function AdminSpecialOffers() {
                     data-testid="input-title"
                   />
                 </div>
-
                 <div>
                   <ImageUpload
                     label="صورة العرض (اختياري)"
@@ -388,20 +306,80 @@ export function AdminSpecialOffers() {
                     onChange={(url) => setFormData({ ...formData, image: url })}
                     bucket="offers"
                     required={false}
-                    data-testid="input-special-offer-image"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">وصف العرض</Label>
+                <Label htmlFor="description">وصف العرض *</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="وصف تفصيلي للعرض"
                   rows={3}
+                  required
                 />
+              </div>
+
+              {/* ───── التصنيف والمتجر ───── */}
+              <div className="border rounded-lg p-4 bg-muted/20 space-y-3">
+                <p className="text-sm font-semibold text-muted-foreground">نطاق العرض (اختياري)</p>
+
+                {/* التصنيف — الأولوية */}
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <Tag className="h-4 w-4 text-primary" />
+                    ربط بتصنيف (اختياري)
+                  </Label>
+                  <Select
+                    value={formData.categoryId || 'none'}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, categoryId: v === 'none' ? '' : v })
+                    }
+                  >
+                    <SelectTrigger data-testid="select-category">
+                      <SelectValue placeholder="بدون تصنيف محدد (عام)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— بدون تصنيف (عرض عام) —</SelectItem>
+                      {activeCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    إذا لم تختر تصنيفاً، سيُوضع العرض في تصنيف "العروض" تلقائياً.
+                  </p>
+                </div>
+
+                {/* المتجر — ثانوي */}
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <Store className="h-4 w-4 text-blue-500" />
+                    ربط بمتجر (اختياري)
+                  </Label>
+                  <Select
+                    value={formData.restaurantId || 'none'}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, restaurantId: v === 'none' ? '' : v })
+                    }
+                  >
+                    <SelectTrigger data-testid="select-restaurant">
+                      <SelectValue placeholder="بدون متجر محدد" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— بدون متجر (عرض عام) —</SelectItem>
+                      {restaurants.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* نوع الخصم */}
@@ -440,9 +418,7 @@ export function AdminSpecialOffers() {
                       min="0"
                       max="100"
                       value={formData.discountPercent}
-                      onChange={(e) =>
-                        setFormData({ ...formData, discountPercent: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, discountPercent: e.target.value })}
                       placeholder="20"
                       data-testid="input-discount-percent"
                     />
@@ -458,9 +434,7 @@ export function AdminSpecialOffers() {
                       step="0.01"
                       min="0"
                       value={formData.discountAmount}
-                      onChange={(e) =>
-                        setFormData({ ...formData, discountAmount: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
                       placeholder="50"
                       data-testid="input-discount-amount"
                     />
@@ -481,6 +455,7 @@ export function AdminSpecialOffers() {
                 </div>
               </div>
 
+              {/* تاريخ الانتهاء */}
               <div>
                 <Label htmlFor="validUntil">تاريخ الانتهاء (اختياري)</Label>
                 <Input
@@ -491,16 +466,16 @@ export function AdminSpecialOffers() {
                 />
               </div>
 
+              {/* الملصقات */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border p-4 rounded-lg bg-muted/20">
-                <div className="flex items-center space-x-2 space-x-reverse h-full pt-6">
+                <div className="flex items-center gap-2 pt-6">
                   <Switch
                     id="showBadge"
                     checked={formData.showBadge}
                     onCheckedChange={(checked) => setFormData({ ...formData, showBadge: checked })}
                   />
-                  <Label htmlFor="showBadge">إظهار الملصقات الترويجية</Label>
+                  <Label htmlFor="showBadge">إظهار الملصقات</Label>
                 </div>
-
                 <div>
                   <Label htmlFor="badgeText1">نص الملصق 1</Label>
                   <Input
@@ -511,7 +486,6 @@ export function AdminSpecialOffers() {
                     disabled={!formData.showBadge}
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="badgeText2">نص الملصق 2</Label>
                   <Input
@@ -524,7 +498,8 @@ export function AdminSpecialOffers() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 space-x-reverse">
+              {/* حالة النشر */}
+              <div className="flex items-center gap-2">
                 <Switch
                   id="isActive"
                   checked={formData.isActive}
@@ -533,15 +508,16 @@ export function AdminSpecialOffers() {
                 <Label htmlFor="isActive">نشط (ظهور العرض للعملاء)</Label>
               </div>
 
+              {/* أزرار */}
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  disabled={createOfferMutation.isPending || updateOfferMutation.isPending}
+                  disabled={isPending}
                   className="gap-2"
                   data-testid="button-save-offer"
                 >
                   <Save className="h-4 w-4" />
-                  {editingOffer ? 'تحديث' : 'حفظ'}
+                  {isPending ? 'جاري الحفظ...' : editingOffer ? 'تحديث' : 'حفظ'}
                 </Button>
                 <Button type="button" variant="outline" onClick={cancelEdit} className="gap-2">
                   <X className="h-4 w-4" />
@@ -553,64 +529,89 @@ export function AdminSpecialOffers() {
         </Card>
       )}
 
+      {/* ───── قائمة العروض ───── */}
       <div className="space-y-4">
         {isLoading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
-        ) : offers?.length === 0 ? (
+        ) : !offers?.length ? (
           <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">لا توجد عروض خاصة</p>
+            <CardContent className="p-6 text-center text-muted-foreground">
+              لا توجد عروض خاصة. أضف أول عرض بالضغط على "إضافة عرض جديد".
             </CardContent>
           </Card>
         ) : (
-          offers?.map((offer) => {
+          offers.map((offer) => {
             const status = getOfferStatus(offer);
+            const restaurantName = getRestaurantName(offer.restaurantId);
+            const categoryName = getCategoryName(offer.categoryId);
 
             return (
               <Card key={offer.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="font-semibold text-lg">{offer.title}</h3>
-                        <Badge className={status.color}>{status.text}</Badge>
-                        <Badge variant="outline" className="gap-1">
-                          <Percent className="h-3 w-3" />
-                          {getDiscountText(offer)}
-                        </Badge>
-                        <Badge variant="secondary">{getRestaurantName(offer.restaurantId)}</Badge>
-                      </div>
-
-                      {offer.description && (
-                        <p className="text-muted-foreground mb-3">{offer.description}</p>
+                <CardContent className="p-6" dir="rtl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex gap-4 flex-1 min-w-0">
+                      {offer.image && (
+                        <img
+                          src={offer.image}
+                          alt={offer.title}
+                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
                       )}
-
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="font-medium text-muted-foreground">تاريخ الانتهاء</p>
-                          <p>{offer.validUntil ? formatDate(offer.validUntil) : 'غير محدد'}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-lg">{offer.title}</h3>
+                          <Badge className={status.color}>{status.text}</Badge>
+                          <Badge variant="outline" className="gap-1">
+                            <Percent className="h-3 w-3" />
+                            {getDiscountText(offer)}
+                          </Badge>
+                          {categoryName && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Tag className="h-3 w-3" />
+                              {categoryName}
+                            </Badge>
+                          )}
+                          {restaurantName && (
+                            <Badge variant="outline" className="gap-1 text-blue-700">
+                              <Store className="h-3 w-3" />
+                              {restaurantName}
+                            </Badge>
+                          )}
+                          {!categoryName && !restaurantName && (
+                            <Badge variant="secondary">عرض عام</Badge>
+                          )}
                         </div>
 
-                        <div>
-                          <p className="font-medium text-muted-foreground">الحد الأدنى للطلب</p>
-                          <p>{offer.minimumOrder ? `${offer.minimumOrder} ريال` : 'بدون حد أدنى'}</p>
-                        </div>
+                        {offer.description && (
+                          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{offer.description}</p>
+                        )}
 
-                        <div>
-                          <p className="font-medium text-muted-foreground">تاريخ الإنشاء</p>
-                          <p>{formatDate(offer.createdAt)}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="font-medium text-muted-foreground">الحد الأدنى</p>
+                            <p>{offer.minimumOrder ? `${offer.minimumOrder} ريال` : 'بدون حد أدنى'}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-muted-foreground">صالح حتى</p>
+                            <p>{offer.validUntil ? formatDate(offer.validUntil) : 'غير محدد'}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-muted-foreground">تاريخ الإنشاء</p>
+                            <p>{formatDate(offer.createdAt)}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => startEdit(offer)}
-                        className="gap-2"
+                        className="gap-1"
                         data-testid={`button-edit-${offer.id}`}
                       >
                         <Edit className="h-4 w-4" />
@@ -624,7 +625,7 @@ export function AdminSpecialOffers() {
                             deleteOfferMutation.mutate(offer.id);
                           }
                         }}
-                        className="gap-2 text-red-600 hover:text-red-700"
+                        className="gap-1 text-red-600 hover:text-red-700"
                         data-testid={`button-delete-${offer.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
