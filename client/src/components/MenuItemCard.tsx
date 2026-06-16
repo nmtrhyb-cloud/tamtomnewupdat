@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingBag, Star, Heart, Plus, ShoppingCart } from 'lucide-react';
+import { ShoppingBag, Star, Heart, Plus, ShoppingCart, Scale } from 'lucide-react';
 import type { MenuItem } from '@shared/schema';
 import { useCart } from '../context/CartContext';
 import { useToast } from '@/hooks/use-toast';
@@ -104,6 +104,7 @@ export default function MenuItemCard({
     : 0;
 
   const isUnavailable = !item.isAvailable && !item.isBannerOffer;
+  const unit = item.unit || 'كجم';
 
   return (
     <div 
@@ -113,11 +114,11 @@ export default function MenuItemCard({
       onClick={handleClick}
     >
       {/* Image Container */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50" style={{ aspectRatio: '1/1' }}>
+      <div className="relative overflow-hidden bg-gradient-to-br from-green-50 to-lime-50" style={{ aspectRatio: '1/1' }}>
         <img
           src={item.image}
           alt={item.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
+          className="w-full h-full object-cover transition-transform duration-500"
           style={{ transform: 'scale(1)' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
@@ -190,6 +191,14 @@ export default function MenuItemCard({
           {item.name}
         </h4>
 
+        {/* Unit badge */}
+        {!item.isBannerOffer && (
+          <div className="flex items-center gap-1 mb-1">
+            <Scale className="h-2.5 w-2.5 text-[#5BB827]" />
+            <span className="text-[9px] text-[#5BB827] font-bold bg-green-50 px-1.5 py-0.5 rounded-full">{unit}</span>
+          </div>
+        )}
+
         {/* Price row */}
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-baseline gap-1">
@@ -210,7 +219,7 @@ export default function MenuItemCard({
           </button>
         </div>
 
-        {/* Rating */}
+        {/* Rating & Sales */}
         <div className="flex items-center gap-1 mt-1">
           <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
           <span className="text-[9px] text-gray-500 font-bold">{item.rating || '4.8'}</span>

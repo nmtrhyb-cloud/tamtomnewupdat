@@ -178,7 +178,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
             <div className="relative w-64 h-64 md:w-80 md:h-80">
               <img
                 src={logoUrl}
-                alt="واصل - Wasel"
+                alt="طمطوم - TamTom"
                 className="relative w-full h-full object-contain drop-shadow-[0_25px_60px_rgba(245,166,35,0.65)] splash-float"
                 data-testid="img-splash-logo"
               />

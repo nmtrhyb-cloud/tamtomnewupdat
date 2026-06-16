@@ -56,11 +56,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const whatsappLink = getS('support_whatsapp', 'https://wa.me/966000000000');
   const phoneLink = getS('support_phone', 'tel:+966000000000');
-  const shareText = getS('share_text', 'تسوق من واصل الآن!');
+  const shareText = getS('share_text', 'تسوق من طمطوم الآن!');
   const shareUrl = getS('share_url', window.location.origin);
   const headerLogoUrl = getS('header_logo_url', '');
   const sidebarLogoUrl = getS('sidebar_logo_url', '') || headerLogoUrl;
-  const appName = getS('app_name', 'واصل');
+  const appName = getS('app_name', 'طمطوم');
   const appVersion = getS('app_version', '1.0.0');
   const sidebarTagline = getS('sidebar_tagline', 'خدمة التوصيل الأسرع في المملكة');
   const supportTitle = getS('text_support_title', 'نحن معك..');

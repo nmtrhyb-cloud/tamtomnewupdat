@@ -91,7 +91,7 @@ export function UiControlPanel() {
               <Input 
                 value={localSettings['app_name'] || ''} 
                 onChange={(e) => handleInputChange('app_name', e.target.value)}
-                placeholder="مثال: متجر واصل"
+                placeholder="مثال: متجر طمطوم"
               />
               <Button onClick={() => handleSaveSetting('app_name')}>حفظ</Button>
             </div>
@@ -424,7 +424,7 @@ export function UiControlPanel() {
               <Input 
                 value={localSettings['flutter_splash_title'] || ''} 
                 onChange={(e) => handleInputChange('flutter_splash_title', e.target.value)}
-                placeholder="مثال: واصل"
+                placeholder="مثال: طمطوم"
               />
               <Button onClick={() => handleSaveSetting('flutter_splash_title')}>حفظ</Button>
             </div>

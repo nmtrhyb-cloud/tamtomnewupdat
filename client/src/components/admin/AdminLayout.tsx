@@ -427,7 +427,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const getLogoUrl = useCallback(() => uiSettings?.find(s => s.key === 'header_logo_url')?.value || '', [uiSettings]);
   const getSidebarImageUrl = useCallback(() => uiSettings?.find(s => s.key === 'sidebar_image_url')?.value || '', [uiSettings]);
-  const getAppName = useCallback(() => uiSettings?.find(s => s.key === 'app_name')?.value || 'واصل', [uiSettings]);
+  const getAppName = useCallback(() => uiSettings?.find(s => s.key === 'app_name')?.value || 'طمطوم', [uiSettings]);
 
   const menuGroups = useMemo((): MenuGroup[] => [
     {
@@ -436,13 +436,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       items: [
         { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', permission: null },
         { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', badge: pendingOrdersCount, permission: 'manage_orders' },
-      ].filter(item => hasPermission(item.permission))
-    },
-    {
-      key: 'restaurants',
-      label: 'المتجر',
-      items: [
-        { icon: Clock, label: 'ساعات العمل', path: '/admin/business-hours', permission: 'manage_menu' },
       ].filter(item => hasPermission(item.permission))
     },
     {
