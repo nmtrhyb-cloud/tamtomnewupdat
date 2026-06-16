@@ -1,10 +1,10 @@
 {
   "packageId": "com.onrender.sareeone_serverwep_6d8v.twa",
   "host": "sareeone-serverwep-6d8v.onrender.com",
-  "name": "واصل - توصيل سريع",
-  "launcherName": "واصل",
+  "name": "طمطوم - توصيل سريع",
+  "launcherName": "طمطوم",
   "display": "standalone",
-  "themeColor": "#F97316",
+  "themeColor": "#E53225",
   "themeColorDark": "#000000",
   "navigationColor": "#000000",
   "navigationColorDark": "#000000",

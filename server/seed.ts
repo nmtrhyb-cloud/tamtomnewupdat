@@ -67,7 +67,7 @@ const defaultUiSettings = [
   // إعدادات المشاركة والقائمة الجانبية
   { key: "show_share_button", value: "true", category: "sidebar", description: "إظهار زر المشاركة في القائمة" },
   { key: "show_contact_button", value: "true", category: "sidebar", description: "إظهار زر التواصل في القائمة" },
-  { key: "share_text", value: "جرب واصل الآن!", category: "sidebar", description: "نص المشاركة" },
+  { key: "share_text", value: "جرب طمطوم الآن!", category: "sidebar", description: "نص المشاركة" },
   { key: "share_url", value: "", category: "sidebar", description: "رابط المشاركة" },
   // إعدادات الخصوصية
   { key: "show_privacy_button", value: "true", category: "privacy", description: "إظهار زر سياسة الخصوصية" },

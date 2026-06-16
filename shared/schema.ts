@@ -83,21 +83,22 @@ export const restaurants = pgTable("restaurants", {
 export const menuItems = pgTable("menu_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 200 }).notNull(),
-  brand: varchar("brand", { length: 100 }), // تمت الإضافة
+  brand: varchar("brand", { length: 100 }),
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   image: text("image").notNull(),
   category: varchar("category", { length: 100 }).notNull(),
-  sizes: text("sizes"), // JSON or comma separated: S,M,L,XL
-  colors: text("colors"), // JSON or comma separated: Red,Blue,Green
-  salesCount: integer("sales_count").default(0), // عدد المبيعات
+  unit: varchar("unit", { length: 50 }), // وحدة القياس: كجم، غرام، قطعة، حزمة، علبة، رطل
+  sizes: text("sizes"),
+  colors: text("colors"),
+  salesCount: integer("sales_count").default(0),
   rating: varchar("rating", { length: 10 }).default("0.0"),
   reviewCount: integer("review_count").default(0),
   isAvailable: boolean("is_available").default(true).notNull(),
   isSpecialOffer: boolean("is_special_offer").default(false).notNull(),
-  isFeatured: boolean("is_featured").default(false), // الأكثر مبيعاً أو مميز
-  isNew: boolean("is_new").default(false), // وصل حديثاً
+  isFeatured: boolean("is_featured").default(false),
+  isNew: boolean("is_new").default(false),
   restaurantId: uuid("restaurant_id").references(() => restaurants.id),
 });
 
@@ -650,6 +651,7 @@ export const insertMenuItemSchema = createInsertSchema(menuItems).partial({
   isAvailable: true,
   isSpecialOffer: true,
   brand: true,
+  unit: true,
   sizes: true,
   colors: true,
   salesCount: true,
@@ -708,6 +710,16 @@ export const insertSpecialOfferSchema = createInsertSchema(specialOffers).partia
   createdAt: true,
   isActive: true,
   minimumOrder: true,
+  discountPercent: true,
+  discountAmount: true,
+  restaurantId: true,
+  categoryId: true,
+  sectionId: true,
+  menuItemId: true,
+  validUntil: true,
+  showBadge: true,
+  badgeText1: true,
+  badgeText2: true,
 });
 export const selectSpecialOfferSchema = createSelectSchema(specialOffers);
 export type SpecialOffer = z.infer<typeof selectSpecialOfferSchema>;

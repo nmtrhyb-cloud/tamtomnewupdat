@@ -227,6 +227,7 @@ router.post("/categories", async (req, res) => {
     });
     
     const newCategory = await storage.createCategory(validatedData);
+    broadcastSettingsChanged('categories');
     res.status(201).json(newCategory);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -259,6 +260,7 @@ router.put("/categories/:id", async (req, res) => {
       return res.status(404).json({ error: "التصنيف غير موجود" });
     }
     
+    broadcastSettingsChanged('categories');
     res.json(updatedCategory);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -282,6 +284,7 @@ router.delete("/categories/:id", async (req, res) => {
       return res.status(404).json({ error: "التصنيف غير موجود" });
     }
     
+    broadcastSettingsChanged('categories');
     res.json({ success: true });
   } catch (error) {
     console.error("خطأ في حذف التصنيف:", error);
@@ -533,6 +536,7 @@ router.post("/menu-items", async (req, res) => {
     });
     
     const newMenuItem = await storage.createMenuItem(validatedData);
+    broadcastSettingsChanged('menu_items');
     res.status(201).json(newMenuItem);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -562,6 +566,7 @@ router.put("/menu-items/:id", async (req, res) => {
       return res.status(404).json({ error: "عنصر القائمة غير موجود" });
     }
     
+    broadcastSettingsChanged('menu_items');
     res.json(updatedMenuItem);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -584,6 +589,7 @@ router.delete("/menu-items/:id", async (req, res) => {
     if (!success) {
       return res.status(404).json({ error: "عنصر القائمة غير موجود" });
     }
+    broadcastSettingsChanged('menu_items');
     
     res.json({ success: true });
   } catch (error) {
@@ -1762,6 +1768,7 @@ router.post("/special-offers", async (req, res) => {
       await storage.updateMenuItem(newOffer.menuItemId, { isSpecialOffer: true });
     }
     
+    broadcastSettingsChanged('special_offers');
     res.status(201).json(newOffer);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -1792,6 +1799,7 @@ router.put("/special-offers/:id", async (req, res) => {
       return res.status(404).json({ error: "العرض الخاص غير موجود" });
     }
     
+    broadcastSettingsChanged('special_offers');
     res.json(updatedOffer);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -1815,6 +1823,7 @@ router.delete("/special-offers/:id", async (req, res) => {
       return res.status(404).json({ error: "العرض الخاص غير موجود" });
     }
     
+    broadcastSettingsChanged('special_offers');
     res.json({ success: true });
   } catch (error) {
     console.error("خطأ في حذف العرض الخاص:", error);

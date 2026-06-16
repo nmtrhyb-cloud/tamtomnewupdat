@@ -271,7 +271,7 @@ export class DatabaseStorage {
   async getMainRestaurant(): Promise<Restaurant | undefined> {
     try {
       const allRestaurants = await this.db.select().from(restaurants);
-      return allRestaurants.find(r => r.name.includes('واصل')) || allRestaurants[0];
+      return allRestaurants.find(r => r.name.includes('طمطوم')) || allRestaurants[0];
     } catch (error) {
       console.error('Error fetching main restaurant:', error);
       return undefined;
