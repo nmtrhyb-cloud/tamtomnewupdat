@@ -404,12 +404,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const { data: ordersData } = useQuery<any>({
     queryKey: ['/api/admin/orders'],
-    refetchInterval: 120000,
+    refetchInterval: 30000,
   });
 
   const { data: wasalniData = [] } = useQuery<any[]>({
     queryKey: ['/api/wasalni'],
-    refetchInterval: 120000,
+    refetchInterval: 30000,
   });
 
   const allOrders: any[] = ordersData?.orders || ordersData || [];
