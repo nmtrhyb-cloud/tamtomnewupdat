@@ -41,7 +41,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
   };
 
   const fillAdminCredentials = () => {
-    setEmail('admin@alsarie-one.com');
+    setEmail('admin@tamtom.com');
     setPassword('admin123456');
   };
 

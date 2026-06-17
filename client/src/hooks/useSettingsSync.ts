@@ -35,7 +35,6 @@ export function useSettingsSync() {
           if (msg.type === "settings_changed") {
             const key = msg.payload?.key || msg.payload?.changedKey;
 
-            // Always invalidate ui-settings for any settings change
             queryClient.invalidateQueries({ queryKey: ["/api/ui-settings"] });
             queryClient.invalidateQueries({ queryKey: ["/api/admin/ui-settings"] });
 
@@ -51,7 +50,10 @@ export function useSettingsSync() {
             }
 
             if (!key || key === "menu_items") {
+              // ← إصلاح: إبطال /api/products التي يستخدمها تطبيق العميل
+              queryClient.invalidateQueries({ queryKey: ["/api/products"] });
               queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/admin/menu-items"] });
               queryClient.invalidateQueries({ queryKey: ["/api/restaurants"] });
             }
 
@@ -60,7 +62,6 @@ export function useSettingsSync() {
               queryClient.invalidateQueries({ queryKey: ["/api/admin/special-offers"] });
             }
 
-            // Business hours / store_status: invalidate all settings-related queries
             if (!key || key === "business_hours" || key === "opening_time" || key === "closing_time" || key === "store_status") {
               queryClient.invalidateQueries({ queryKey: ["/api/ui-settings"] });
               queryClient.invalidateQueries({ queryKey: ["/api/admin/ui-settings"] });
@@ -80,7 +81,7 @@ export function useSettingsSync() {
       };
 
       ws.onclose = () => {
-        reconnectTimeout = setTimeout(connect, 5000);
+        reconnectTimeout = setTimeout(connect, 3000);
       };
 
       ws.onerror = () => {

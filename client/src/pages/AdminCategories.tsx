@@ -32,13 +32,18 @@ export default function AdminCategories() {
     queryKey: ['/api/admin/categories'],
   });
 
+  const invalidateCategories = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/categories'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+  };
+
   const createCategoryMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiRequest('POST', '/api/admin/categories', data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/categories'] });
+      invalidateCategories();
       toast({ title: "تم إنشاء القسم", description: "تم إضافة القسم الجديد بنجاح" });
       resetForm();
       setIsDialogOpen(false);
@@ -51,7 +56,7 @@ export default function AdminCategories() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/categories'] });
+      invalidateCategories();
       toast({ title: "تم تحديث القسم", description: "تم تحديث القسم بنجاح" });
       resetForm();
       setEditingCategory(null);
@@ -65,7 +70,7 @@ export default function AdminCategories() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/categories'] });
+      invalidateCategories();
       toast({ title: "تم حذف القسم", description: "تم حذف القسم بنجاح" });
     },
   });

@@ -112,6 +112,12 @@ export default function AdminMenuItems() {
     };
   };
 
+  const invalidateMenuItems = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/menu-items'] });
+  };
+
   const createMenuItemMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!data.name.trim()) throw new Error('اسم المنتج مطلوب');
@@ -127,7 +133,7 @@ export default function AdminMenuItems() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
+      invalidateMenuItems();
       toast({ title: 'تم إضافة المنتج', description: 'تم إضافة المنتج الجديد بنجاح' });
       resetForm();
       setIsDialogOpen(false);
@@ -152,7 +158,7 @@ export default function AdminMenuItems() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
+      invalidateMenuItems();
       toast({ title: 'تم تحديث المنتج', description: 'تم تحديث المنتج بنجاح' });
       resetForm();
       setEditingItem(null);
@@ -170,7 +176,7 @@ export default function AdminMenuItems() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/menu-items'] });
+      invalidateMenuItems();
       toast({ title: 'تم حذف المنتج', description: 'تم حذف المنتج بنجاح' });
     },
     onError: (error: Error) => {

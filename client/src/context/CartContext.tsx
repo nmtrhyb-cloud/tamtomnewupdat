@@ -213,12 +213,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = async (item: MenuItem, restaurantId: string, restaurantName: string) => {
     // 1. فحص حالة التطبيق العامة
     if (!appStatus.isOpen) {
+      // ← إصلاح: التحقق من إعداد السماح بالطلبات الآجلة
+      const allowScheduledWhenClosed = getSetting('allow_scheduled_orders_when_closed') !== 'false';
+      if (!allowScheduledWhenClosed) {
+        toast({
+          title: "المتجر مغلق حالياً",
+          description: "لا يمكنك الطلب لأن المتجر مغلق وخدمة الطلبات الآجلة غير مفعلة.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // الطلبات الآجلة مسموحة - نُخبر المستخدم فقط
       toast({
-        title: "عذراً، التطبيق مغلق حالياً",
-        description: "لا يمكنك إضافة منتجات لأن التطبيق مغلق حالياً من قِبل الإدارة.",
-        variant: "destructive",
+        title: "📅 سيتم تأجيل طلبك",
+        description: `المتجر مغلق حالياً. سيتم تأجيل طلبك حتى ${appStatus.openingTime || 'وقت الفتح'}.`,
+        duration: 4000,
       });
-      return;
     }
 
     // 2. فحص حالة المتجر إذا كان معروفاً
