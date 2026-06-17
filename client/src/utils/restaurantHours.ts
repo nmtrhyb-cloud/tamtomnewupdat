@@ -176,11 +176,11 @@ export interface AppStatus {
   closingTime: string;
 }
 
-export function getAppStatus(openingTime: string, closingTime: string, storeStatus?: string): AppStatus {
+export function getAppStatus(openingTime: string, closingTime: string, storeStatus?: string, closeMessage?: string): AppStatus {
   if (storeStatus === 'closed') {
     return {
       isOpen: false,
-      message: 'التطبيق مغلق حالياً من قِبل الإدارة',
+      message: closeMessage || 'التطبيق مغلق حالياً من قِبل الإدارة',
       openingTime,
       closingTime,
     };
@@ -196,9 +196,15 @@ export function getAppStatus(openingTime: string, closingTime: string, storeStat
     };
   }
 
+  // احتساب الوقت الحالي بتوقيت اليمن (UTC+3) للتناسق مع الخادم
   const now = new Date();
-  const currentTime = now.toTimeString().slice(0, 5);
-  const currentMinutes = timeToMinutes(currentTime);
+  const yemenOffsetMinutes = 3 * 60;
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const yemenTotalMinutes = (utcMinutes + yemenOffsetMinutes) % (24 * 60);
+  const yemenHour = Math.floor(yemenTotalMinutes / 60);
+  const yemenMin = yemenTotalMinutes % 60;
+  const currentTime = `${String(yemenHour).padStart(2, '0')}:${String(yemenMin).padStart(2, '0')}`;
+  const currentMinutes = yemenTotalMinutes;
   const openMinutes = timeToMinutes(openingTime);
   const closeMinutes = timeToMinutes(closingTime);
 
@@ -206,6 +212,7 @@ export function getAppStatus(openingTime: string, closingTime: string, storeStat
   if (closeMinutes > openMinutes) {
     isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   } else {
+    // ساعات تمتد لما بعد منتصف الليل
     isOpen = currentMinutes >= openMinutes || currentMinutes < closeMinutes;
   }
 
