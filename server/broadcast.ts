@@ -1,5 +1,6 @@
 // Shared broadcast module for WebSocket events
 // This allows routes to broadcast events without direct dependency on the WS server
+import { invalidateStoreCache } from './utils/cache.js';
 
 type BroadcastFn = (type: string, payload: any) => void;
 
@@ -18,6 +19,8 @@ export function broadcastEvent(type: string, payload: any) {
 
 export function broadcastSettingsChanged(changedKey?: string) {
   _settingsVersion = Date.now();
+  // إبطال كاش الإعدادات عند كل تغيير
+  invalidateStoreCache();
   broadcastEvent('settings_changed', {
     version: _settingsVersion,
     changedKey,

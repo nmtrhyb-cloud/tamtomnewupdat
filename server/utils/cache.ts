@@ -48,3 +48,17 @@ export class Cache<T> {
 }
 
 export const deliveryFeeCache = new Cache(60);
+
+// كاش إعدادات الواجهة — TTL قصير لضمان تحديث فوري عبر WebSocket
+export const uiSettingsCache = new Cache<any[]>(30);
+
+// كاش المنتجات والمطاعم والتصنيفات
+export const productsCache = new Cache<any[]>(60);
+export const restaurantsCache = new Cache<any[]>(30);
+export const categoriesCache = new Cache<any[]>(120);
+
+// دالة مساعدة لإبطال كل كاش المتجر دفعة واحدة (تُستدعى عند تغيير الإعدادات)
+export function invalidateStoreCache() {
+  uiSettingsCache.clear();
+  restaurantsCache.clear();
+}

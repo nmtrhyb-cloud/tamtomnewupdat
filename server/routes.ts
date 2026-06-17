@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { dbStorage } from "./db";
 import { log } from "./viteServer";
 import { broadcastSettingsChanged } from "./broadcast";
+import { uiSettingsCache } from "./utils/cache";
 import authRoutes from "./routes/auth";
 import { customerRoutes } from "./routes/customer";
 import driverRoutes from "./routes/driver";
@@ -424,7 +425,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // UI Settings Routes
   app.get("/api/ui-settings", async (req, res) => {
     try {
+      const CACHE_KEY = 'all';
+      const cached = uiSettingsCache.get(CACHE_KEY);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
       const settings = await storage.getUiSettings();
+      uiSettingsCache.set(CACHE_KEY, settings);
       res.json(settings);
     } catch (error) {
       console.error('خطأ في جلب إعدادات الواجهة:', error);

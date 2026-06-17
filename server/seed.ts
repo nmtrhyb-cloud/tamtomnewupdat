@@ -89,6 +89,9 @@ const defaultUiSettings = [
   { key: "driver_start_time", value: "09:00", category: "driver", description: "وقت بدء دوام الموصلين (مثال: 09:00)" },
   { key: "driver_end_time", value: "21:00", category: "driver", description: "وقت انتهاء دوام الموصلين (مثال: 21:00)" },
   { key: "enable_scheduled_orders", value: "true", category: "driver", description: "السماح للعملاء بجدولة الطلبات خارج ساعات الموصلين" },
+  // إعدادات حالة المتجر المتقدمة
+  { key: "store_close_message", value: "عذراً، المتجر مغلق حالياً. سنعود قريباً إن شاء الله.", category: "store", description: "الرسالة التي تظهر للعملاء عند إغلاق المتجر يدوياً" },
+  { key: "allow_scheduled_orders_when_closed", value: "true", category: "store", description: "السماح بالطلبات المجدولة عندما يكون المتجر مغلقاً" },
 ];
 
 // ضمان وجود الإعدادات الافتراضية في قاعدة البيانات (لكل تشغيل)

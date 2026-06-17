@@ -92,8 +92,14 @@ router.post("/", async (req, res) => {
         // المتجر مفتوح يدوياً - لا فحص للوقت
       } else if (!isScheduledOrder) {
         // الطلبات المؤجلة لا تحتاج فحص ساعات العمل الحالية
+        // نستخدم توقيت اليمن UTC+3 بشكل صريح
         const now = new Date();
-        const currentTime = now.toTimeString().slice(0, 5);
+        const yemenOffset = 3 * 60; // UTC+3
+        const yemenMs = now.getTime() + (yemenOffset * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000);
+        const yemenNow = new Date(yemenMs);
+        const yemenHours = String(yemenNow.getUTCHours()).padStart(2, '0');
+        const yemenMins = String(yemenNow.getUTCMinutes()).padStart(2, '0');
+        const currentTime = `${yemenHours}:${yemenMins}`;
         const timeToMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
         const current = timeToMinutes(currentTime);
         const open = timeToMinutes(openingTime);
