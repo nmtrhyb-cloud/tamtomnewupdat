@@ -677,42 +677,94 @@ export default function AdminUiSettings() {
                 </div>
               </div>
 
-              {/* حالة المتجر — مخصص لأنه يستخدم "open"/"closed" وليس "true"/"false" */}
+              {/* حالة المتجر — يدعم 3 أوضاع: مفتوح دائماً / مغلق يدوياً / تلقائي حسب الوقت */}
               <div className="flex items-start gap-4 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Label className="font-medium text-gray-800">حالة المتجر</Label>
-                    {(getValue('store_status') === 'open') ? (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">مفتوح</span>
+                    {getValue('store_status') === 'open' ? (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">مفتوح دائماً</span>
+                    ) : getValue('store_status') === 'auto' ? (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">تلقائي (حسب الوقت)</span>
                     ) : (
-                      <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">مغلق</span>
+                      <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">مغلق يدوياً</span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">تفعيل أو إيقاف قبول الطلبات من العملاء فوراً</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Switch
-                    checked={getValue('store_status') === 'open'}
-                    onCheckedChange={(checked) => {
-                      const value = checked ? 'open' : 'closed';
+                  <select
+                    value={getValue('store_status') || 'open'}
+                    onChange={(e) => {
+                      const value = e.target.value;
                       setPendingChanges(prev => ({ ...prev, store_status: value }));
                       setTimeout(() => updateSettingMutation.mutate({ key: 'store_status', value }), 50);
+                    }}
+                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  >
+                    <option value="open">مفتوح دائماً</option>
+                    <option value="auto">تلقائي (حسب الوقت)</option>
+                    <option value="closed">مغلق يدوياً</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* رسالة الإغلاق اليدوي — تظهر فقط عند الإغلاق اليدوي */}
+              {getValue('store_status') === 'closed' && (
+                <div className="py-2">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p className="text-xs text-red-700 font-medium">⚠️ المتجر مغلق حالياً — العملاء لا يستطيعون الطلب</p>
+                    <p className="text-xs text-red-600 mt-1">الرسالة أدناه ستظهر للعملاء كنافذة منبثقة</p>
+                  </div>
+                  <SettingRow
+                    label="رسالة سبب الإغلاق"
+                    {...rowProps('store_close_message')}
+                    type="textarea"
+                    placeholder="عذراً، المتجر مغلق مؤقتاً. سنعود قريباً إن شاء الله."
+                    description="الرسالة التي تظهر للعملاء عند محاولة الطلب أثناء الإغلاق اليدوي"
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              <SettingRow label="وقت الفتح" {...rowProps('opening_time')} placeholder="08:00" description="وقت فتح المتجر يومياً في وضع التلقائي (مثال: 08:00)" />
+              <SettingRow label="وقت الإغلاق" {...rowProps('closing_time')} placeholder="23:00" description="وقت إغلاق المتجر يومياً في وضع التلقائي (مثال: 23:00)" />
+
+              {/* السماح بالطلبات المجدولة عند الإغلاق */}
+              <div className="flex items-start gap-4 py-3 border-t border-gray-100 mt-1">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-medium text-gray-800">السماح بالطلبات المجدولة عند الإغلاق</Label>
+                    {(getValue('allow_scheduled_orders_when_closed') !== 'false') ? (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">مفعّل</span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">معطّل</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">عند تفعيله، يستطيع العملاء إضافة منتجات وجدولة الطلب لوقت الفتح حتى لو كان المتجر مغلقاً</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Switch
+                    checked={getValue('allow_scheduled_orders_when_closed') !== 'false'}
+                    onCheckedChange={(checked) => {
+                      const value = checked ? 'true' : 'false';
+                      setPendingChanges(prev => ({ ...prev, allow_scheduled_orders_when_closed: value }));
+                      setTimeout(() => updateSettingMutation.mutate({ key: 'allow_scheduled_orders_when_closed', value }), 50);
                     }}
                   />
                 </div>
               </div>
 
-              <SettingRow label="وقت الفتح" {...rowProps('opening_time')} placeholder="08:00" description="وقت فتح المتجر يومياً (مثال: 08:00)" />
-              <SettingRow label="وقت الإغلاق" {...rowProps('closing_time')} placeholder="23:00" description="وقت إغلاق المتجر يومياً (مثال: 23:00)" />
-
               {/* معاينة أوقات العمل */}
               <div className="py-3">
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-xs font-medium text-gray-600 mb-1">معاينة أوقات العمل</p>
+                  <p className="text-xs font-medium text-gray-600 mb-1">معاينة الحالة الحالية</p>
                   <p className="text-sm text-gray-800">
                     {getValue('store_status') === 'open'
-                      ? `المتجر مفتوح من ${getValue('opening_time') || '08:00'} إلى ${getValue('closing_time') || '23:00'}`
-                      : 'المتجر مغلق حالياً — لن يتمكن العملاء من الطلب'}
+                      ? '✅ المتجر مفتوح دائماً — الطلبات مقبولة في أي وقت'
+                      : getValue('store_status') === 'auto'
+                      ? `⏰ تلقائي — يفتح ${getValue('opening_time') || '08:00'} ويغلق ${getValue('closing_time') || '23:00'} يومياً`
+                      : '🔴 المتجر مغلق يدوياً — لن يتمكن العملاء من الطلب'}
                   </p>
                 </div>
               </div>

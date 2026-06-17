@@ -187,7 +187,8 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
     loadSettings(true);
     connectWebSocket();
 
-    const interval = setInterval(() => loadSettings(false), 15000);
+    // استطلاع كل 60 ثانية احتياطياً — WebSocket يتولى التحديثات الفورية
+    const interval = setInterval(() => loadSettings(false), 60000);
 
     return () => {
       clearInterval(interval);

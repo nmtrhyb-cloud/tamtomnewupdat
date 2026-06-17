@@ -182,12 +182,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const openingTime = getSetting('opening_time') || '08:00';
     const closingTime = getSetting('closing_time') || '23:00';
     const storeStatus = getSetting('store_status') || 'open';
-    return getAppStatus(openingTime, closingTime, storeStatus);
+    const closeMessage = getSetting('store_close_message') || '';
+    return getAppStatus(openingTime, closingTime, storeStatus, closeMessage);
   }, [getSetting]);
 
   // هل خدمة الطلبات المؤجلة عند الإغلاق مفعّلة من لوحة التحكم؟
   const allowScheduledWhenClosed = useMemo(() => {
-    return getSetting('allow_scheduled_orders_when_closed') !== 'false';
+    // دعم المفتاحين القديم والجديد للتوافق مع البيانات المخزنة
+    const val = getSetting('allow_scheduled_orders_when_closed');
+    if (val !== '') return val !== 'false';
+    return getSetting('enable_scheduled_orders') !== 'false';
   }, [getSetting]);
 
   // حفظ السلة في localStorage
@@ -241,29 +245,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 2. فحص حالة المطعم/المتجر إذا كان معروفاً (المتجر مفتوح)
-    if (restaurantId && restaurantId !== 'unknown') {
-      try {
-        const response = await fetch(`/api/restaurants/${restaurantId}`);
-        if (response.ok) {
-          const restaurant = await response.json();
-          const orderStatus = canOrderFromRestaurant(restaurant, true);
-          if (!orderStatus.canOrder) {
-            toast({
-              title: "🔴 المتجر مغلق حالياً",
-              description: orderStatus.message || "عذراً، لا يمكنك الطلب من هذا المتجر لأنه مغلق حالياً.",
-              variant: "destructive",
-              duration: 5000,
-            });
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Error checking restaurant status:", error);
-      }
-    }
-
-    // 3. إضافة العنصر — المتجر مفتوح
+    // 2. إضافة العنصر — المتجر مفتوح (فحص حالة المطعم يتم عبر disabled prop في الواجهة)
     const existingItem = state.items.find(cartItem => cartItem.id === item.id);
     dispatch({ type: 'ADD_ITEM', item, restaurantId, restaurantName });
 

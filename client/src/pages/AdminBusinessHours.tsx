@@ -4,78 +4,86 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { Clock, Save, AlertCircle } from 'lucide-react';
+import { Clock, Save, AlertCircle, Calendar, Info } from 'lucide-react';
 
 interface BusinessHoursSettings {
   opening_time: string;
   closing_time: string;
   store_status: string;
+  store_close_message: string;
+  allow_scheduled_orders_when_closed: string;
 }
 
 export default function AdminBusinessHours() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [formData, setFormData] = useState<BusinessHoursSettings>({
-    opening_time: '11:00',
+    opening_time: '08:00',
     closing_time: '23:00',
-    store_status: 'open'
+    store_status: 'open',
+    store_close_message: 'عذراً، المتجر مغلق حالياً. سنعود قريباً إن شاء الله.',
+    allow_scheduled_orders_when_closed: 'true',
   });
 
-  // جلب الإعدادات الحالية
   const { data: settings, isLoading } = useQuery({
     queryKey: ['/api/ui-settings'],
     select: (data: any[]) => {
-      const result = {
-        opening_time: '11:00',
-        closing_time: '23:00', 
-        store_status: 'open'
+      const result: BusinessHoursSettings = {
+        opening_time: '08:00',
+        closing_time: '23:00',
+        store_status: 'open',
+        store_close_message: 'عذراً، المتجر مغلق حالياً. سنعود قريباً إن شاء الله.',
+        allow_scheduled_orders_when_closed: 'true',
       };
-      
+
       data?.forEach((setting) => {
         if (setting.key === 'opening_time') result.opening_time = setting.value;
         if (setting.key === 'closing_time') result.closing_time = setting.value;
         if (setting.key === 'store_status') result.store_status = setting.value;
+        if (setting.key === 'store_close_message') result.store_close_message = setting.value;
+        if (setting.key === 'allow_scheduled_orders_when_closed') result.allow_scheduled_orders_when_closed = setting.value;
       });
-      
+
       return result;
     }
   });
 
-  // تحديث النموذج عندما تصل البيانات
   useEffect(() => {
     if (settings) {
       setFormData(settings);
     }
   }, [settings]);
 
-  // تحديث أوقات العمل
   const updateBusinessHours = useMutation({
     mutationFn: async (data: BusinessHoursSettings) => {
-      // Update each setting individually
       const updates = [
-        apiRequest('PUT', `/api/ui-settings/opening_time`, { value: data.opening_time }),
-        apiRequest('PUT', `/api/ui-settings/closing_time`, { value: data.closing_time }),
-        apiRequest('PUT', `/api/ui-settings/store_status`, { value: data.store_status })
+        apiRequest('PUT', `/api/admin/ui-settings/opening_time`, { value: data.opening_time }),
+        apiRequest('PUT', `/api/admin/ui-settings/closing_time`, { value: data.closing_time }),
+        apiRequest('PUT', `/api/admin/ui-settings/store_status`, { value: data.store_status }),
+        apiRequest('PUT', `/api/admin/ui-settings/store_close_message`, { value: data.store_close_message }),
+        apiRequest('PUT', `/api/admin/ui-settings/allow_scheduled_orders_when_closed`, { value: data.allow_scheduled_orders_when_closed }),
       ];
-      
+
       await Promise.all(updates);
     },
     onSuccess: () => {
       toast({
         title: "تم التحديث بنجاح",
-        description: "تم تحديث أوقات العمل بنجاح",
+        description: "تم تحديث إعدادات المتجر وأوقات العمل",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/ui-settings'] });
     },
     onError: (error) => {
-      console.error('خطأ في تحديث أوقات العمل:', error);
+      console.error('خطأ في تحديث إعدادات المتجر:', error);
       toast({
-        title: "خطأ في التحديث", 
-        description: "حدث خطأ أثناء تحديث أوقات العمل",
+        title: "خطأ في التحديث",
+        description: "حدث خطأ أثناء تحديث الإعدادات",
         variant: "destructive"
       });
     }
@@ -83,8 +91,7 @@ export default function AdminBusinessHours() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // التحقق من صحة البيانات
+
     if (!formData.opening_time || !formData.closing_time) {
       toast({
         title: "بيانات ناقصة",
@@ -98,17 +105,7 @@ export default function AdminBusinessHours() {
   };
 
   const handleInputChange = (field: keyof BusinessHoursSettings, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const toggleStoreStatus = (isOpen: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      store_status: isOpen ? 'open' : 'closed'
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   if (isLoading) {
@@ -118,7 +115,6 @@ export default function AdminBusinessHours() {
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
           <div className="bg-white p-6 rounded-lg border">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-6"></div>
             <div className="space-y-4">
               <div className="h-10 bg-gray-200 rounded"></div>
               <div className="h-10 bg-gray-200 rounded"></div>
@@ -132,135 +128,160 @@ export default function AdminBusinessHours() {
 
   return (
     <div className="p-6" data-testid="page-admin-business-hours">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Clock className="h-6 w-6 text-blue-600" />
           <h1 className="text-2xl font-bold text-gray-900">إدارة أوقات العمل</h1>
         </div>
-        <p className="text-gray-600">تحديد أوقات فتح وإغلاق المتجر وحالة التشغيل</p>
+        <p className="text-gray-600">تحديد أوقات فتح وإغلاق المتجر وضبط خدمة الطلبات المجدولة</p>
       </div>
 
-      {/* Business Hours Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            إعدادات أوقات العمل
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Store Status */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-gray-600" />
-                <div>
-                  <Label className="text-base font-medium">حالة المتجر</Label>
-                  <p className="text-sm text-gray-600">تفعيل أو إيقاف قبول الطلبات</p>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* حالة المتجر */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              حالة المتجر
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+              <div>
+                <Label className="text-base font-semibold">وضع المتجر</Label>
+                <p className="text-sm text-gray-500 mt-0.5">اختر كيف يتحدد فتح أو إغلاق المتجر</p>
+              </div>
+              <select
+                value={formData.store_status}
+                onChange={(e) => handleInputChange('store_status', e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                data-testid="select-store-status"
+              >
+                <option value="open">مفتوح دائماً</option>
+                <option value="auto">تلقائي (حسب الوقت)</option>
+                <option value="closed">مغلق يدوياً</option>
+              </select>
+            </div>
+
+            {/* رسالة الإغلاق — تظهر فقط عند الإغلاق اليدوي */}
+            {formData.store_status === 'closed' && (
+              <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-red-700 font-medium">المتجر مغلق حالياً — العملاء لن يتمكنوا من الطلب</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-gray-700">رسالة سبب الإغلاق</Label>
+                  <Textarea
+                    value={formData.store_close_message}
+                    onChange={(e) => handleInputChange('store_close_message', e.target.value)}
+                    placeholder="عذراً، المتجر مغلق مؤقتاً. سنعود قريباً إن شاء الله."
+                    rows={2}
+                    className="resize-none border-red-200 focus:border-red-400"
+                    data-testid="input-store-close-message"
+                  />
+                  <p className="text-xs text-red-600">هذه الرسالة ستظهر للعملاء كنافذة منبثقة عند محاولة الطلب</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm font-medium ${formData.store_status === 'open' ? 'text-green-600' : 'text-red-600'}`}>
-                  {formData.store_status === 'open' ? 'مفتوح' : 'مغلق'}
-                </span>
-                <Switch
-                  checked={formData.store_status === 'open'}
-                  onCheckedChange={toggleStoreStatus}
-                  data-testid="switch-store-status"
+            )}
+
+            {/* أوقات العمل — تظهر دائماً (مرجع للوضع التلقائي) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="opening_time" className="text-sm font-medium">
+                  وقت الفتح
+                  {formData.store_status === 'auto' && <span className="text-blue-500 mr-1">*</span>}
+                </Label>
+                <Input
+                  id="opening_time"
+                  type="time"
+                  value={formData.opening_time}
+                  onChange={(e) => handleInputChange('opening_time', e.target.value)}
+                  data-testid="input-opening-time"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="closing_time" className="text-sm font-medium">
+                  وقت الإغلاق
+                  {formData.store_status === 'auto' && <span className="text-blue-500 mr-1">*</span>}
+                </Label>
+                <Input
+                  id="closing_time"
+                  type="time"
+                  value={formData.closing_time}
+                  onChange={(e) => handleInputChange('closing_time', e.target.value)}
+                  data-testid="input-closing-time"
                 />
               </div>
             </div>
 
-            {/* Opening Time */}
-            <div className="space-y-2">
-              <Label htmlFor="opening_time" className="text-sm font-medium">
-                وقت الفتح
-              </Label>
-              <Input
-                id="opening_time"
-                type="time"
-                value={formData.opening_time}
-                onChange={(e) => handleInputChange('opening_time', e.target.value)}
-                className="max-w-xs"
-                data-testid="input-opening-time"
-              />
-            </div>
-
-            {/* Closing Time */}
-            <div className="space-y-2">
-              <Label htmlFor="closing_time" className="text-sm font-medium">
-                وقت الإغلاق
-              </Label>
-              <Input
-                id="closing_time"
-                type="time"
-                value={formData.closing_time}
-                onChange={(e) => handleInputChange('closing_time', e.target.value)}
-                className="max-w-xs"
-                data-testid="input-closing-time"
-              />
-            </div>
-
-            {/* Business Hours Preview */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">معاينة أوقات العمل</h4>
-              <p className="text-blue-800">
-                {formData.store_status === 'open' ? (
-                  <>المتجر مفتوح من الساعة {formData.opening_time} إلى {formData.closing_time}</>
-                ) : (
-                  'المتجر مغلق حالياً'
-                )}
+            {/* معاينة */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs font-medium text-blue-700 mb-1">معاينة الحالة</p>
+              <p className="text-sm text-blue-800">
+                {formData.store_status === 'open'
+                  ? '✅ المتجر مفتوح دائماً — الطلبات مقبولة في أي وقت'
+                  : formData.store_status === 'auto'
+                  ? `⏰ تلقائي — يفتح ${formData.opening_time} ويغلق ${formData.closing_time} يومياً (توقيت اليمن)`
+                  : '🔴 المتجر مغلق يدوياً — لن يتمكن العملاء من الطلب'}
               </p>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Submit Button */}
-            <div className="flex gap-3">
-              <Button
-                type="submit"
-                disabled={updateBusinessHours.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-                data-testid="button-save-business-hours"
-              >
-                {updateBusinessHours.isPending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    حفظ التغييرات
-                  </>
-                )}
-              </Button>
+        {/* الطلبات المجدولة */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-green-600" />
+              الطلبات المجدولة عند الإغلاق
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-green-50 rounded-lg p-3 text-xs text-green-700">
+              <Info className="h-4 w-4 inline ml-1" />
+              عند تفعيل هذه الخاصية، يستطيع العملاء إضافة منتجات وجدولة طلباتهم لوقت الفتح حتى لو كان المتجر مغلقاً
             </div>
-          </form>
-        </CardContent>
-      </Card>
 
-      {/* Information Card */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-lg">معلومات مهمة</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 text-sm text-gray-600">
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p>ستظهر أوقات العمل المحدثة فوراً في التطبيق للعملاء</p>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+              <div>
+                <Label className="text-base font-semibold">السماح بالطلبات المجدولة</Label>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {formData.allow_scheduled_orders_when_closed === 'true'
+                    ? '✅ العملاء يستطيعون جدولة طلباتهم عند الإغلاق'
+                    : '🔴 العملاء لا يستطيعون الطلب أو الجدولة عند الإغلاق'}
+                </p>
+              </div>
+              <Switch
+                checked={formData.allow_scheduled_orders_when_closed === 'true'}
+                onCheckedChange={(checked) => handleInputChange('allow_scheduled_orders_when_closed', checked ? 'true' : 'false')}
+                data-testid="switch-allow-scheduled"
+              />
             </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p>عند إغلاق المتجر، لن يتمكن العملاء من إجراء طلبات جديدة</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p>يمكن تغيير الأوقات في أي وقت حسب احتياجاتك</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-3">
+          <Button
+            type="submit"
+            disabled={updateBusinessHours.isPending}
+            className="bg-blue-600 hover:bg-blue-700"
+            data-testid="button-save-business-hours"
+          >
+            {updateBusinessHours.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                جاري الحفظ...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                حفظ التغييرات
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
