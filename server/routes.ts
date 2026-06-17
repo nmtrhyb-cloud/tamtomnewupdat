@@ -84,7 +84,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "المستخدم غير موجود" });
       }
-      res.json(user);
+      // إزالة الحقول الحساسة قبل الإرسال
+      const { password: _pw, ...safeUser } = user as any;
+      res.json(safeUser);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب بيانات المستخدم" });
     }
@@ -97,7 +99,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "المستخدم غير موجود" });
       }
-      res.json(user);
+      const { password: _pw, ...safeUser } = user as any;
+      res.json(safeUser);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب بيانات المستخدم" });
     }

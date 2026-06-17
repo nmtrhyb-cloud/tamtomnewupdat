@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'saree1-secret-key-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  console.warn('⚠️  JWT_SECRET not set — using a temporary insecure key. Set JWT_SECRET before deploying!');
+}
+const _JWT_SECRET = JWT_SECRET || `dev-only-${Math.random().toString(36).slice(2)}`;
 
 interface TokenPayload {
   id: string;
@@ -22,7 +29,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, _JWT_SECRET) as TokenPayload;
     req.user = decoded;
     next();
   } catch (error) {

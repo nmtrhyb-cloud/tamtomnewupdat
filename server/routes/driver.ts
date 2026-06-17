@@ -1,10 +1,11 @@
 import express from "express";
 import { storage } from "../storage";
 import { z } from "zod";
-import { insertDriverSchema } from "@shared/schema";
+import { insertDriverSchema, wasalniRequests } from "@shared/schema";
 import { coerceRequestData } from "../utils/coercion";
 import { requireDriverAuth, AuthenticatedRequest } from "../utils/auth-middleware";
 import { AdvancedDatabaseStorage } from "../db-advanced";
+import { eq } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -598,8 +599,6 @@ router.get("/wasalni", requireDriverAuth, async (req: AuthenticatedRequest, res)
     const { status } = req.query;
     const db = (storage as any).db;
     if (!db) return res.status(500).json({ error: "Database not available" });
-    const { wasalniRequests } = await import("../../shared/schema");
-    const { eq } = await import("drizzle-orm");
 
     let results = await db.select().from(wasalniRequests).where(eq(wasalniRequests.driverId, driverId));
 
@@ -628,8 +627,6 @@ router.put("/wasalni/:id/status", requireDriverAuth, async (req: AuthenticatedRe
 
     const db = (storage as any).db;
     if (!db) return res.status(500).json({ error: "Database not available" });
-    const { wasalniRequests } = await import("../../shared/schema");
-    const { eq } = await import("drizzle-orm");
 
     const [request] = await db.select().from(wasalniRequests).where(eq(wasalniRequests.id, id));
     if (!request) return res.status(404).json({ error: "الطلب غير موجود" });

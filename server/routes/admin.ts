@@ -81,44 +81,46 @@ const schema = {
   driverWithdrawals
 };
 
-// Middleware للمصادقة - يُضيف req.admin إذا كان التوكن صحيحاً
+// Middleware للمصادقة — يُجبر على وجود توكن صحيح لجميع مسارات /api/admin/*
 router.use(async (req: any, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const adminUser = await dbStorage.getAdminById(token);
-      if (adminUser && adminUser.isActive) {
-        req.admin = adminUser;
-        // تحليل الصلاحيات للمدير الفرعي
-        if (adminUser.userType === 'sub_admin') {
-          try {
-            req.adminPermissions = adminUser.permissions ? JSON.parse(adminUser.permissions) : [];
-          } catch {
-            req.adminPermissions = [];
-          }
-        } else {
-          req.adminPermissions = null; // null = all permissions (main admin)
-        }
-      }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'مطلوب تسجيل الدخول للوصول إلى لوحة التحكم' });
     }
+    const token = authHeader.split(' ')[1];
+    const adminUser = await dbStorage.getAdminById(token);
+    if (!adminUser || !adminUser.isActive) {
+      return res.status(401).json({ error: 'جلسة غير صالحة أو منتهية — يرجى تسجيل الدخول مجدداً' });
+    }
+    req.admin = adminUser;
+    // تحليل الصلاحيات للمدير الفرعي
+    if (adminUser.userType === 'sub_admin') {
+      try {
+        req.adminPermissions = adminUser.permissions ? JSON.parse(adminUser.permissions) : [];
+      } catch {
+        req.adminPermissions = [];
+      }
+    } else {
+      req.adminPermissions = null; // null = جميع الصلاحيات (المدير الرئيسي)
+    }
+    next();
   } catch (e) {
-    // ignore auth errors - proceed without admin context
+    return res.status(500).json({ error: 'خطأ في التحقق من الهوية' });
   }
-  next();
 });
 
 // دالة للتحقق من صلاحيات المدير الفرعي
 function requirePermission(permission: string) {
   return (req: any, res: any, next: any) => {
-    // إذا لم يكن هناك مدير مسجل دخوله، تجاوز (لا توجد مصادقة إلزامية)
-    if (!req.admin) return next();
+    // req.admin مضمون الوجود هنا لأن middleware التوثيق يسبق هذه الدالة دائماً
+    if (!req.admin) return res.status(401).json({ error: 'غير مصرح' });
     // المدير الرئيسي له جميع الصلاحيات
     if (req.admin.userType === 'admin') return next();
     // المدير الفرعي: التحقق من الصلاحية
     const perms: string[] = req.adminPermissions || [];
     if (!perms.includes(permission)) {
-      return res.status(403).json({ error: "ليس لديك صلاحية للوصول إلى هذه الوظيفة" });
+      return res.status(403).json({ error: 'ليس لديك صلاحية للوصول إلى هذه الوظيفة' });
     }
     next();
   };
@@ -475,7 +477,14 @@ router.get("/restaurants/:restaurantId/sections", async (req, res) => {
 
 router.post("/restaurant-sections", async (req, res) => {
   try {
-    const section = await storage.createRestaurantSection(req.body);
+    const { name, restaurantId } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: "اسم القسم مطلوب" });
+    }
+    if (!restaurantId || typeof restaurantId !== 'string') {
+      return res.status(400).json({ error: "معرّف المطعم مطلوب" });
+    }
+    const section = await storage.createRestaurantSection({ ...req.body, name: name.trim() });
     res.status(201).json(section);
   } catch (error) {
     console.error("خطأ في إضافة قسم المطعم:", error);
@@ -486,7 +495,13 @@ router.post("/restaurant-sections", async (req, res) => {
 router.put("/restaurant-sections/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const section = await storage.updateRestaurantSection(id, req.body);
+    if (!id) return res.status(400).json({ error: "المعرّف مطلوب" });
+    const { name, ...rest } = req.body;
+    const updateData = name ? { ...rest, name: String(name).trim() } : rest;
+    if (name !== undefined && !updateData.name) {
+      return res.status(400).json({ error: "اسم القسم لا يمكن أن يكون فارغاً" });
+    }
+    const section = await storage.updateRestaurantSection(id, updateData);
     if (!section) return res.status(404).json({ error: "القسم غير موجود" });
     res.json(section);
   } catch (error) {
