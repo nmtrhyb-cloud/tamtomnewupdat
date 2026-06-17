@@ -1,22 +1,18 @@
 services:
   - type: web
-    name: wasel-app
-    env: node
-    plan: free
-    buildCommand: npm install && npm run db:push && npm run build
+    name: tamtom-api
+    runtime: node
+    repo: https://github.com/nmtrhyb-cloud/tamtomnewupdat
+    plan: starter
+    region: oregon
+    buildCommand: |
+      rm -rf node_modules package-lock.json
+      npm cache clean --force
+      npm install --registry=https://registry.npmjs.org
+      npm run build
     startCommand: npm start
     envVars:
+      - key: NPM_CONFIG_REGISTRY
+        value: https://registry.npmjs.org
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: wasel-db
-          property: connectionString
-      - key: SESSION_SECRET
-        generateValue: true
-      - key: PORT
-        value: 10000
-
-databases:
-  - name: wasel-db
-    plan: free
