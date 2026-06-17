@@ -282,7 +282,7 @@ export async function seedDefaultData() {
     const adminUsers = [
       {
         name: "مدير النظام الرئيسي",
-        email: "admin@alsarie-one.com",
+        email: "admin@tamtom.com",
         username: "admin",
         phone: "+967777777777",
         password: "777146387", // كلمة مرور غير مشفرة للاختبار
@@ -291,7 +291,7 @@ export async function seedDefaultData() {
       },
       {
         name: "مدير فرعي",
-        email: "manager@alsarie-one.com", 
+        email: "manager@tamtom.com", 
         username: "manager",
         phone: "+967777777778",
         password: "manager123",

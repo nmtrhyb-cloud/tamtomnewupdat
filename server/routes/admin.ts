@@ -2144,7 +2144,7 @@ router.delete("/users/:id", async (req, res) => {
       const user = adminResult[0];
       
       // منع حذف المدير الرئيسي
-      if (user.userType === 'admin' && user.email === 'admin@alsarie-one.com') {
+      if (user.userType === 'admin' && (user.email === 'admin@tamtom.com' || user.email === 'admin@alsarie-one.com')) {
         return res.status(403).json({ error: "لا يمكن حذف المدير الرئيسي" });
       }
       
