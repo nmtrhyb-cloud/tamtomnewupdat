@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +15,89 @@ interface BusinessHoursSettings {
   store_status: string;
   store_close_message: string;
   allow_scheduled_orders_when_closed: string;
+}
+
+// تحويل من 24 ساعة إلى 12 ساعة + صباح/مساء
+function to12h(time24: string): { hour: string; minute: string; period: 'AM' | 'PM' } {
+  const [hStr, mStr] = time24.split(':');
+  let h = parseInt(hStr, 10) || 0;
+  const m = mStr || '00';
+  const period: 'AM' | 'PM' = h < 12 ? 'AM' : 'PM';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return { hour: String(h), minute: m, period };
+}
+
+// تحويل من 12 ساعة + صباح/مساء إلى 24 ساعة
+function to24h(hour: string, minute: string, period: 'AM' | 'PM'): string {
+  let h = parseInt(hour, 10) || 12;
+  if (period === 'AM') {
+    if (h === 12) h = 0;
+  } else {
+    if (h !== 12) h += 12;
+  }
+  return `${String(h).padStart(2, '0')}:${minute.padStart(2, '0')}`;
+}
+
+// عرض الوقت بصيغة 12h للمعاينة
+function formatTime12h(time24: string): string {
+  const { hour, minute, period } = to12h(time24);
+  const periodAr = period === 'AM' ? 'صباحاً' : 'مساءً';
+  return `${hour}:${minute} ${periodAr}`;
+}
+
+// مكوّن اختيار الوقت بنظام 12 ساعة
+function TimePicker({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  id?: string;
+}) {
+  const { hour, minute, period } = to12h(value);
+
+  const handleHour = (h: string) => onChange(to24h(h, minute, period));
+  const handleMinute = (m: string) => onChange(to24h(hour, m, period));
+  const handlePeriod = (p: 'AM' | 'PM') => onChange(to24h(hour, minute, p));
+
+  const selectClass =
+    'border border-gray-200 rounded-lg px-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer';
+
+  return (
+    <div id={id} className="flex items-center gap-1 rtl">
+      {/* الساعة */}
+      <select className={selectClass} value={hour} onChange={(e) => handleHour(e.target.value)}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+          <option key={h} value={String(h)}>
+            {String(h).padStart(2, '0')}
+          </option>
+        ))}
+      </select>
+
+      <span className="text-gray-500 font-bold text-sm">:</span>
+
+      {/* الدقيقة */}
+      <select className={selectClass} value={minute} onChange={(e) => handleMinute(e.target.value)}>
+        {['00', '15', '30', '45'].map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+
+      {/* صباح / مساء */}
+      <select
+        className={`${selectClass} font-semibold ${period === 'AM' ? 'text-amber-600' : 'text-indigo-600'}`}
+        value={period}
+        onChange={(e) => handlePeriod(e.target.value as 'AM' | 'PM')}
+      >
+        <option value="AM">صباحاً</option>
+        <option value="PM">مساءً</option>
+      </select>
+    </div>
+  );
 }
 
 export default function AdminBusinessHours() {
@@ -185,32 +267,28 @@ export default function AdminBusinessHours() {
               </div>
             )}
 
-            {/* أوقات العمل — تظهر دائماً (مرجع للوضع التلقائي) */}
+            {/* أوقات العمل — محدد AM/PM */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="opening_time" className="text-sm font-medium">
                   وقت الفتح
                   {formData.store_status === 'auto' && <span className="text-blue-500 mr-1">*</span>}
                 </Label>
-                <Input
+                <TimePicker
                   id="opening_time"
-                  type="time"
                   value={formData.opening_time}
-                  onChange={(e) => handleInputChange('opening_time', e.target.value)}
-                  data-testid="input-opening-time"
+                  onChange={(val) => handleInputChange('opening_time', val)}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="closing_time" className="text-sm font-medium">
                   وقت الإغلاق
                   {formData.store_status === 'auto' && <span className="text-blue-500 mr-1">*</span>}
                 </Label>
-                <Input
+                <TimePicker
                   id="closing_time"
-                  type="time"
                   value={formData.closing_time}
-                  onChange={(e) => handleInputChange('closing_time', e.target.value)}
-                  data-testid="input-closing-time"
+                  onChange={(val) => handleInputChange('closing_time', val)}
                 />
               </div>
             </div>
@@ -222,7 +300,7 @@ export default function AdminBusinessHours() {
                 {formData.store_status === 'open'
                   ? '✅ المتجر مفتوح دائماً — الطلبات مقبولة في أي وقت'
                   : formData.store_status === 'auto'
-                  ? `⏰ تلقائي — يفتح ${formData.opening_time} ويغلق ${formData.closing_time} يومياً (توقيت اليمن)`
+                  ? `⏰ تلقائي — يفتح ${formatTime12h(formData.opening_time)} ويغلق ${formatTime12h(formData.closing_time)} يومياً (توقيت اليمن)`
                   : '🔴 المتجر مغلق يدوياً — لن يتمكن العملاء من الطلب'}
               </p>
             </div>

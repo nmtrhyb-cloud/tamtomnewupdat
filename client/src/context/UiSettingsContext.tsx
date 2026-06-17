@@ -98,7 +98,14 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
         setSettings(settingsMap);
         saveCachedSettings(settingsMap);
       }
-    } catch {
+    } catch (err) {
+      // إذا فشل الجلب ولا توجد بيانات مخزنة مؤقتاً، أوقف حالة التحميل
+      console.error('⚠️ فشل جلب إعدادات الواجهة:', err);
+      const cached = loadCachedSettings();
+      if (!cached && isInitial) {
+        // استخدام إعدادات افتراضية بدلاً من التجميد
+        setSettings({});
+      }
     } finally {
       isFetchingRef.current = false;
       if (isInitial) {

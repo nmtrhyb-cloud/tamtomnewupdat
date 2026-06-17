@@ -107,7 +107,6 @@ export default function AdvancedReports() {
   }), { totalRevenue: 0, totalCommission: 0, totalOrders: 0 });
 
   const downloadReport = (type: string) => {
-    // TODO: Implement CSV/PDF download
     const data = type === 'drivers' ? driverStats : restaurantStats;
     const csv = generateCSV(data, type);
     const blob = new Blob([csv], { type: 'text/csv' });
