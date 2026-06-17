@@ -103,12 +103,19 @@ export default function Cart() {
     return { start, end, scheduledOrdersEnabled: enabled };
   }, [settings]);
 
+  // هل خدمة الطلبات المؤجلة عند الإغلاق مفعّلة؟
+  const allowScheduledWhenClosed = useMemo(() => {
+    return (settings as any[])?.find((s: any) => s.key === 'allow_scheduled_orders_when_closed')?.value !== 'false';
+  }, [settings]);
+
   const restaurantStatus = useMemo(() => {
     if (!restaurant) return null;
     return getRestaurantStatus(restaurant);
   }, [restaurant]);
 
-  const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
+  // يمكن إتمام الطلب إذا: المتجر مفتوح، أو مغلق لكن التأجيل مفعّل
+  const storeClosed = !appStatus.isOpen || (restaurantStatus !== null && !restaurantStatus.isOpen);
+  const canPlaceOrder = !storeClosed || allowScheduledWhenClosed;
 
   const handleLocationSelect = async (location: LocationData) => {
     setOrderForm(prev => ({
@@ -257,10 +264,25 @@ export default function Cart() {
       return;
     }
 
-    if (!appStatus.isOpen || (restaurantStatus && !restaurantStatus.isOpen)) {
-      // عرض واجهة الإغلاق مع خيار الجدولة
-      setShowAppClosedOverlay(true);
-      return;
+    // إذا كان المتجر مغلقاً
+    if (storeClosed) {
+      if (allowScheduledWhenClosed) {
+        // التأجيل مفعّل → فتح نافذة الجدولة مباشرةً
+        if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
+          toast({
+            title: "معلومات ناقصة",
+            description: "يرجى ملء الاسم ورقم الهاتف والعنوان أولاً لجدولة الطلب",
+            variant: "destructive",
+          });
+          return;
+        }
+        setShowScheduledDialog(true);
+        return;
+      } else {
+        // التأجيل معطّل → عرض واجهة الإغلاق فقط (بدون جدولة)
+        setShowAppClosedOverlay(true);
+        return;
+      }
     }
 
     if (!orderForm.customerName || !orderForm.customerPhone || !orderForm.deliveryAddress) {
@@ -281,7 +303,7 @@ export default function Cart() {
       return;
     }
 
-    // فحص ساعات عمل الموصلين - إذا كانوا غير متاحين اعرض حوار الجدولة
+    // فحص ساعات عمل الموصلين — إذا كانوا غير متاحين اعرض حوار الجدولة
     if (driverHours.scheduledOrdersEnabled && orderForm.deliveryTime === 'now') {
       const driversAvailable = isDriverAvailable(driverHours.start, driverHours.end);
       if (!driversAvailable) {
@@ -381,7 +403,6 @@ export default function Cart() {
           <div className="flex items-center gap-3">
             <div className="text-3xl font-black tracking-tighter flex items-center gap-2">
               <span className="text-primary">طمطوم</span>
-              <span className="text-[10px] font-bold text-primary/70 tracking-[0.3em] border border-primary/30 rounded px-1.5 py-0.5">WASEL</span>
             </div>
             <h1 className="text-3xl font-black uppercase tracking-tighter"> - السلة</h1>
           </div>
@@ -690,20 +711,22 @@ export default function Cart() {
               </CardContent>
             </Card>
 
-            {/* رسالة إغلاق التطبيق أو المتجر */}
-            {items.length > 0 && !canPlaceOrder && (
-              <Card className="border-red-200 bg-red-50">
+            {/* لافتة حالة المتجر */}
+            {items.length > 0 && storeClosed && (
+              <Card className={allowScheduledWhenClosed ? "border-orange-200 bg-orange-50" : "border-red-200 bg-red-50"}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <AlertCircle className={`h-5 w-5 shrink-0 mt-0.5 ${allowScheduledWhenClosed ? 'text-orange-500' : 'text-red-600'}`} />
                     <div>
-                      <p className="font-semibold text-red-700 mb-1">
-                        {!appStatus.isOpen ? 'التطبيق مغلق حالياً' : 'المتجر مغلق حالياً'}
+                      <p className={`font-semibold mb-1 ${allowScheduledWhenClosed ? 'text-orange-700' : 'text-red-700'}`}>
+                        {!appStatus.isOpen ? 'المتجر مغلق حالياً' : 'المتجر مغلق حالياً'}
                       </p>
-                      <p className="text-sm text-red-600">
-                        {!appStatus.isOpen ? appStatus.message : restaurantStatus?.message}
+                      <p className={`text-sm ${allowScheduledWhenClosed ? 'text-orange-600' : 'text-red-600'}`}>
+                        {allowScheduledWhenClosed
+                          ? 'يمكنك إتمام طلبك كطلب مجدول وسيتم تنفيذه عند الفتح.'
+                          : (!appStatus.isOpen ? appStatus.message : restaurantStatus?.message)}
                       </p>
-                      <p className="text-xs text-red-500 mt-1">
+                      <p className={`text-xs mt-1 ${allowScheduledWhenClosed ? 'text-orange-500' : 'text-red-500'}`}>
                         أوقات العمل: {appStatus.openingTime} - {appStatus.closingTime}
                       </p>
                     </div>
@@ -717,17 +740,23 @@ export default function Cart() {
               <Card>
                 <CardContent className="p-4">
                   <Button 
-                    className={`w-full font-semibold py-3 text-lg ${canPlaceOrder ? 'bg-black hover:bg-red-600 text-white' : 'bg-gray-400 text-white cursor-not-allowed'}`}
+                    className={`w-full font-semibold py-3 text-lg ${
+                      canPlaceOrder
+                        ? storeClosed
+                          ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                          : 'bg-black hover:bg-red-600 text-white'
+                        : 'bg-gray-400 text-white cursor-not-allowed'
+                    }`}
                     onClick={handlePlaceOrder}
-                    disabled={placeOrderMutation.isPending || !orderForm.locationData || !canPlaceOrder}
+                    disabled={placeOrderMutation.isPending || !canPlaceOrder}
                     data-testid="button-place-order"
                   >
                     {placeOrderMutation.isPending 
                       ? 'جاري تأكيد الطلب...' 
                       : !canPlaceOrder 
-                        ? (!appStatus.isOpen ? '🔒 التطبيق مغلق حالياً' : '🔒 المتجر مغلق حالياً')
-                        : !orderForm.locationData 
-                          ? 'يرجى تحديد الموقع للمتابعة' 
+                        ? '🔒 المتجر مغلق — الطلبات المؤجلة غير متاحة'
+                        : storeClosed
+                          ? `📅 جدولة الطلب - ${formatCurrency(total)}`
                           : `تأكيد الطلب - ${formatCurrency(total)}`}
                   </Button>
                 </CardContent>

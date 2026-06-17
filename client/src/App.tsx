@@ -12,6 +12,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
 import FloatingCartNotification from "./components/FloatingCartNotification";
+import StoreStatusNotifier from "./components/StoreStatusNotifier";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import DriverLoginPage from "./pages/driver/DriverLoginPage";
 import AdminApp from "./pages/AdminApp";
@@ -113,6 +114,7 @@ function MainApp() {
   // Default customer app
   return (
     <>
+      <StoreStatusNotifier />
       <Layout>
         <Router />
       </Layout>
