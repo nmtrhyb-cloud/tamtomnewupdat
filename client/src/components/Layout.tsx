@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { 
   Home, 
@@ -43,14 +43,21 @@ export default function Layout({ children }: LayoutProps) {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [overlayDismissed, setOverlayDismissed] = useState(false);
   const { getSetting } = useUiSettings();
 
   const appStatus = (() => {
     const openingTime = getSetting('opening_time') || '08:00';
     const closingTime = getSetting('closing_time') || '23:00';
     const storeStatus = getSetting('store_status') || 'open';
-    return getAppStatus(openingTime, closingTime, storeStatus);
+    const closeMessage = getSetting('store_close_message') || '';
+    return getAppStatus(openingTime, closingTime, storeStatus, closeMessage);
   })();
+
+  // إعادة إظهار النافذة عند تغيّر حالة المتجر إلى مغلق
+  useEffect(() => {
+    if (!appStatus.isOpen) setOverlayDismissed(false);
+  }, [appStatus.isOpen]);
 
   const getS = (key: string, defaultValue: string) => getSetting(key) || defaultValue;
 
@@ -115,12 +122,12 @@ export default function Layout({ children }: LayoutProps) {
       <TopBar />
       {location !== '/' && !location.startsWith('/restaurant/') && <Navbar />}
 
-      {/* App Closed Overlay */}
-      {!appStatus.isOpen && (
+      {/* App Closed Overlay — يظهر مرة واحدة عند الدخول، قابل للإغلاق للتصفح */}
+      {!appStatus.isOpen && !overlayDismissed && (
         <AppClosedOverlay
           openingTime={appStatus.openingTime}
-          message="عذراً لا تستطيع الطلب الآن لأن التطبيق مغلق"
-          onClose={() => {}}
+          message={appStatus.message}
+          onClose={() => setOverlayDismissed(true)}
           scheduledOrdersEnabled={getSetting('allow_scheduled_orders_when_closed') !== 'false'}
         />
       )}
