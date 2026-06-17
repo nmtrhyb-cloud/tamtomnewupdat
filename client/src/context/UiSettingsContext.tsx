@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const SETTINGS_CACHE_KEY = 'ui_settings_cache';
-const SETTINGS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (reduced from 5)
+const SETTINGS_CACHE_TTL = 2 * 60 * 1000;
 
 interface UiSetting {
   id: string;
@@ -43,11 +43,9 @@ function saveCachedSettings(settings: Record<string, string>) {
       timestamp: Date.now(),
     }));
   } catch {
-    // ignore storage errors
   }
 }
 
-// Public endpoint — works for all roles (customer, driver, admin) without auth
 const SETTINGS_ENDPOINT = '/api/ui-settings';
 
 export function UiSettingsProvider({ children }: { children: React.ReactNode }) {
@@ -58,6 +56,8 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef(false);
+  const prevSettingsRef = useRef<Record<string, string> | null>(null);
+  const isInitialLoadRef = useRef(true);
 
   const loadSettings = useCallback(async (isInitial = false) => {
     if (isFetchingRef.current) return;
@@ -70,11 +70,35 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
           acc[setting.key] = setting.value;
           return acc;
         }, {} as Record<string, string>);
+
+        if (!isInitial && !isInitialLoadRef.current && prevSettingsRef.current !== null) {
+          const prev = prevSettingsRef.current;
+          const prevStatus = prev.store_status;
+          const newStatus = settingsMap.store_status;
+          const prevOpen = prev.opening_time;
+          const newOpen = settingsMap.opening_time;
+          const prevClose = prev.closing_time;
+          const newClose = settingsMap.closing_time;
+
+          if (prevStatus !== newStatus || prevOpen !== newOpen || prevClose !== newClose) {
+            window.dispatchEvent(new CustomEvent('storeStatusChanged', {
+              detail: {
+                storeStatus: newStatus || 'auto',
+                openingTime: newOpen || '08:00',
+                closingTime: newClose || '23:00',
+                prevStoreStatus: prevStatus,
+              }
+            }));
+          }
+        }
+
+        prevSettingsRef.current = settingsMap;
+        if (isInitial) isInitialLoadRef.current = false;
+
         setSettings(settingsMap);
         saveCachedSettings(settingsMap);
       }
     } catch {
-      // On network failure, keep cached settings
     } finally {
       isFetchingRef.current = false;
       if (isInitial) {
@@ -100,18 +124,15 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
             message.type === 'admin_update' ||
             message.type === 'settings_changed'
           ) {
-            // Clear cache so next load fetches fresh
             localStorage.removeItem(SETTINGS_CACHE_KEY);
             loadSettings(false);
           }
         } catch {
-          // ignore parse errors
         }
       };
 
       ws.onclose = () => {
         wsRef.current = null;
-        // Reconnect after 3 seconds (reduced from 10)
         if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = setTimeout(connectWebSocket, 3000);
       };
@@ -120,7 +141,6 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
         ws.close();
       };
     } catch {
-      // WebSocket not available, rely on polling
     }
   }, [loadSettings]);
 
@@ -167,7 +187,6 @@ export function UiSettingsProvider({ children }: { children: React.ReactNode }) 
     loadSettings(true);
     connectWebSocket();
 
-    // Periodic refresh every 15 seconds as reliable fallback
     const interval = setInterval(() => loadSettings(false), 15000);
 
     return () => {

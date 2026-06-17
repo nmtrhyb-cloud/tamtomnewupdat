@@ -185,6 +185,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return getAppStatus(openingTime, closingTime, storeStatus);
   }, [getSetting]);
 
+  // هل خدمة الطلبات المؤجلة عند الإغلاق مفعّلة من لوحة التحكم؟
+  const allowScheduledWhenClosed = useMemo(() => {
+    return getSetting('allow_scheduled_orders_when_closed') !== 'false';
+  }, [getSetting]);
+
   // حفظ السلة في localStorage
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(state));
@@ -211,27 +216,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = async (item: MenuItem, restaurantId: string, restaurantName: string) => {
-    // 1. فحص حالة التطبيق العامة
+    // 1. فحص حالة التطبيق — إذا كان المتجر مغلقاً
     if (!appStatus.isOpen) {
-      // ← إصلاح: التحقق من إعداد السماح بالطلبات الآجلة
-      const allowScheduledWhenClosed = getSetting('allow_scheduled_orders_when_closed') !== 'false';
       if (!allowScheduledWhenClosed) {
+        // خدمة الطلبات المؤجلة معطّلة → منع الإضافة كلياً
         toast({
-          title: "المتجر مغلق حالياً",
-          description: "لا يمكنك الطلب لأن المتجر مغلق وخدمة الطلبات الآجلة غير مفعلة.",
+          title: "🔴 المتجر مغلق حالياً",
+          description: appStatus.message
+            ? `${appStatus.message}. لا تتوفر خدمة الطلبات المؤجلة حالياً.`
+            : `المتجر مغلق ولا تتوفر خدمة الطلبات المؤجلة. يفتح الساعة ${appStatus.openingTime}`,
           variant: "destructive",
+          duration: 6000,
         });
         return;
       }
-      // الطلبات الآجلة مسموحة - نُخبر المستخدم فقط
+
+      // خدمة الطلبات المؤجلة مفعّلة → السماح بالإضافة مع إشعار تنبيهي
+      dispatch({ type: 'ADD_ITEM', item, restaurantId, restaurantName });
       toast({
-        title: "📅 سيتم تأجيل طلبك",
-        description: `المتجر مغلق حالياً. سيتم تأجيل طلبك حتى ${appStatus.openingTime || 'وقت الفتح'}.`,
-        duration: 4000,
+        title: "📅 تمت الإضافة — سيُجدَّل طلبك",
+        description: `المتجر مغلق حالياً. "${item.name}" في سلتك وسيُرسل كطلب مجدول. يفتح المتجر الساعة ${appStatus.openingTime}`,
+        duration: 6000,
       });
+      return;
     }
 
-    // 2. فحص حالة المتجر إذا كان معروفاً
+    // 2. فحص حالة المطعم/المتجر إذا كان معروفاً (المتجر مفتوح)
     if (restaurantId && restaurantId !== 'unknown') {
       try {
         const response = await fetch(`/api/restaurants/${restaurantId}`);
@@ -240,9 +250,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const orderStatus = canOrderFromRestaurant(restaurant, true);
           if (!orderStatus.canOrder) {
             toast({
-              title: "المتجر مغلق حالياً",
+              title: "🔴 المتجر مغلق حالياً",
               description: orderStatus.message || "عذراً، لا يمكنك الطلب من هذا المتجر لأنه مغلق حالياً.",
               variant: "destructive",
+              duration: 5000,
             });
             return;
           }
@@ -252,23 +263,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // التحقق من وجود العنصر في السلة لتحديد نوع الإشعار
+    // 3. إضافة العنصر — المتجر مفتوح
     const existingItem = state.items.find(cartItem => cartItem.id === item.id);
-    
     dispatch({ type: 'ADD_ITEM', item, restaurantId, restaurantName });
-    
-    // إظهار إشعار بنجح إضافة العنصر
+
     if (existingItem) {
       toast({
-        title: "تم زيادة الكمية",
-        description: `تم زيادة كمية "${item.name}" في السلة من ${restaurantName}`,
-        duration: 3000,
+        title: "✅ تم زيادة الكمية",
+        description: `تم زيادة كمية "${item.name}" في السلة`,
+        duration: 2500,
       });
     } else {
       toast({
-        title: "تمت الإضافة للسلة",
-        description: `تم إضافة "${item.name}" من ${restaurantName} إلى السلة`,
-        duration: 3000,
+        title: "✅ تمت الإضافة للسلة",
+        description: `تم إضافة "${item.name}" إلى سلتك`,
+        duration: 2500,
       });
     }
   };

@@ -11,9 +11,9 @@
   --card-foreground: hsl(222.2 84% 4.9%);
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(222.2 84% 4.9%);
-  --primary: hsl(32 95% 55%); /* Wasel Amber - matches logo */
+  --primary: hsl(32 95% 55%); /* Tamtom Amber - matches logo */
   --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(220 45% 12%); /* Wasel Navy - matches logo background */
+  --secondary: hsl(220 45% 12%); /* Tamtom Navy - matches logo background */
   --secondary-foreground: hsl(0 0% 100%);
   --muted: hsl(32 15% 96%);
   --muted-foreground: hsl(220 8% 46%);
@@ -110,13 +110,13 @@
     background: linear-gradient(135deg, #0E1729 0%, #152033 100%);
   }
 
-  .logo-wasel {
+  .logo-tamtom {
     display: flex;
     align-items: center;
     font-weight: 900;
   }
 
-  .logo-wasel .primary {
+  .logo-tamtom .primary {
     color: #F97316;
   }
 
