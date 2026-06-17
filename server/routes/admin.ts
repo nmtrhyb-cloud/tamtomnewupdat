@@ -1911,36 +1911,32 @@ router.put("/business-hours", async (req, res) => {
   try {
     const { opening_time, closing_time, store_status } = req.body;
     
-    const updates = [];
-    
-    if (opening_time) {
-      updates.push(
-        db.update(schema.systemSettings)
-          .set({ value: opening_time, updatedAt: new Date() })
-          .where(eq(schema.systemSettings.key, 'opening_time'))
-      );
+    const upsertSetting = async (key: string, value: string) => {
+      const existing = await db.select().from(schema.systemSettings).where(eq(schema.systemSettings.key, key));
+      if (existing.length > 0) {
+        await db.update(schema.systemSettings)
+          .set({ value, updatedAt: new Date() })
+          .where(eq(schema.systemSettings.key, key));
+      } else {
+        await db.insert(schema.systemSettings).values({ key, value, description: key, createdAt: new Date(), updatedAt: new Date() });
+      }
+    };
+
+    if (opening_time !== undefined && opening_time !== null) {
+      await upsertSetting('opening_time', opening_time);
+    }
+
+    if (closing_time !== undefined && closing_time !== null) {
+      await upsertSetting('closing_time', closing_time);
+    }
+
+    if (store_status !== undefined && store_status !== null) {
+      await upsertSetting('store_status', store_status);
     }
     
-    if (closing_time) {
-      updates.push(
-        db.update(schema.systemSettings)
-          .set({ value: closing_time, updatedAt: new Date() })
-          .where(eq(schema.systemSettings.key, 'closing_time'))
-      );
-    }
-    
-    if (store_status) {
-      updates.push(
-        db.update(schema.systemSettings)
-          .set({ value: store_status, updatedAt: new Date() })
-          .where(eq(schema.systemSettings.key, 'store_status'))
-      );
-    }
-    
-    await Promise.all(updates);
-    
-    // بث التحديث عبر WebSocket لمزامنة جميع الأجهزة
+    // بث التحديث عبر WebSocket لمزامنة جميع الأجهزة فوراً
     broadcastSettingsChanged('business_hours');
+    broadcastSettingsChanged('store_status');
     
     res.json({ success: true, message: "تم تحديث أوقات العمل بنجاح" });
   } catch (error) {

@@ -74,7 +74,7 @@ export function registerAdvancedRoutes(app: express.Express) {
           return {
             id: driver.id,
             name: driver.name,
-            email: driver.email || `${driver.phone}@wasel.app`,
+            email: driver.email || `${driver.phone}@tamtom.app`,
             phone: driver.phone,
             status: driver.isActive ? "active" : "inactive",
             rating: avgRating,
