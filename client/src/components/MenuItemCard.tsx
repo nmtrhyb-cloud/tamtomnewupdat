@@ -73,22 +73,37 @@ export default function MenuItemCard({
     },
   });
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (item.isBannerOffer) {
-      if (item.menuItemId) setLocation(`/product/${item.menuItemId}`);
-      return;
-    }
+
     if (!isOnline) {
       toast({ title: "لا يوجد اتصال", description: "تحقق من اتصالك بالإنترنت", variant: "destructive" });
       return;
     }
+
+    // ← إصلاح: عند الضغط على عرض banner نضيف المنتج المرتبط مباشرةً للسلة
+    if (item.isBannerOffer) {
+      if (item.menuItemId) {
+        try {
+          const res = await fetch(`/api/products/${item.menuItemId}`);
+          if (res.ok) {
+            const product = await res.json();
+            await addItem(product, restaurantId, restaurantName);
+          } else {
+            setLocation(`/product/${item.menuItemId}`);
+          }
+        } catch {
+          setLocation(`/product/${item.menuItemId}`);
+        }
+      }
+      return;
+    }
+
     if (disabled && disabledMessage) {
       toast({ title: "لا يمكن الطلب", description: disabledMessage, variant: "destructive" });
       return;
     }
-    addItem(item, restaurantId, restaurantName);
-    toast({ title: "✅ تمت الإضافة", description: `${item.name} في السلة` });
+    await addItem(item, restaurantId, restaurantName);
   };
 
   const handleClick = () => {
@@ -99,8 +114,12 @@ export default function MenuItemCard({
     }
   };
 
-  const discountPercent = item.originalPrice 
-    ? Math.round((1 - parseFloat(String(item.price)) / parseFloat(String(item.originalPrice))) * 100)
+  // ← إصلاح: حساب السعر بأمان مع معالجة القيم غير الصالحة
+  const rawPrice = parseFloat(String(item.price ?? '0'));
+  const displayPrice = isNaN(rawPrice) ? 0 : rawPrice;
+  const rawOriginalPrice = item.originalPrice ? parseFloat(String(item.originalPrice)) : null;
+  const discountPercent = rawOriginalPrice && rawOriginalPrice > displayPrice && displayPrice > 0
+    ? Math.round((1 - displayPrice / rawOriginalPrice) * 100)
     : 0;
 
   const isUnavailable = !item.isAvailable && !item.isBannerOffer;
@@ -124,7 +143,6 @@ export default function MenuItemCard({
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
         />
         
-        {/* Gradient overlay at bottom */}
         <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent" />
 
         {/* Badges top-right */}
@@ -173,7 +191,7 @@ export default function MenuItemCard({
             disabled={isUnavailable || disabled}
           >
             {item.isBannerOffer ? <ShoppingBag className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
-            {item.isBannerOffer ? 'عرض' : 'أضف للسلة'}
+            {item.isBannerOffer ? 'أضف للسلة' : 'أضف للسلة'}
           </Button>
         </div>
 
@@ -202,10 +220,18 @@ export default function MenuItemCard({
         {/* Price row */}
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-baseline gap-1">
-            <span className="text-sm md:text-base font-black text-[#E53225] leading-none">{parseFloat(String(item.price)).toFixed(0)}</span>
-            <span className="text-[9px] text-gray-500 font-bold">ريال</span>
-            {item.originalPrice && (
-              <span className="text-[9px] text-gray-400 line-through">{parseFloat(String(item.originalPrice)).toFixed(0)}</span>
+            {displayPrice > 0 ? (
+              <>
+                <span className="text-sm md:text-base font-black text-[#E53225] leading-none">
+                  {displayPrice.toFixed(0)}
+                </span>
+                <span className="text-[9px] text-gray-500 font-bold">ريال</span>
+                {rawOriginalPrice && rawOriginalPrice > displayPrice && (
+                  <span className="text-[9px] text-gray-400 line-through">{rawOriginalPrice.toFixed(0)}</span>
+                )}
+              </>
+            ) : (
+              <span className="text-[10px] text-gray-400 font-bold">السعر غير محدد</span>
             )}
           </div>
           
