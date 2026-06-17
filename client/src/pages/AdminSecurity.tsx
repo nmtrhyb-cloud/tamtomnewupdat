@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Shield, UserCheck, Eye, EyeOff, 
   RefreshCw, Users, Globe, Smartphone,
@@ -40,9 +40,7 @@ interface SecurityLog {
 
 export default function AdminSecurity() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [showIps, setShowIps] = useState(false);
-  const [phoneVerificationEnabled, setPhoneVerificationEnabled] = useState(false);
 
   const { data: securitySettings } = useQuery<SecuritySettings>({
     queryKey: ['/api/admin/security/settings'],
@@ -51,50 +49,6 @@ export default function AdminSecurity() {
   const { data: securityLogs } = useQuery<SecurityLog[]>({
     queryKey: ['/api/admin/security/logs'],
   });
-
-  // قراءة إعداد التحقق من الهاتف من إعدادات الواجهة
-  const { data: uiSettings } = useQuery<any[]>({
-    queryKey: ['/api/ui-settings'],
-  });
-
-  useEffect(() => {
-    if (uiSettings) {
-      const setting = uiSettings.find((s: any) => s.key === 'phone_verification_enabled');
-      setPhoneVerificationEnabled(setting?.value === 'true');
-    }
-  }, [uiSettings]);
-
-  // حفظ إعداد التحقق من الهاتف
-  const savePhoneVerification = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      await apiRequest('PUT', '/api/admin/ui-settings/phone_verification_enabled', {
-        value: enabled ? 'true' : 'false',
-      });
-    },
-    onSuccess: (_, enabled) => {
-      toast({
-        title: 'تم الحفظ',
-        description: enabled
-          ? 'تم تفعيل التحقق من رقم الهاتف عبر رسالة نصية'
-          : 'تم إلغاء التحقق من رقم الهاتف',
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
-    },
-    onError: () => {
-      toast({
-        title: 'خطأ',
-        description: 'فشل حفظ الإعداد، يرجى المحاولة مرة أخرى',
-        variant: 'destructive',
-      });
-      // إعادة القيمة إلى ما كانت عليه عند الفشل
-      setPhoneVerificationEnabled((prev) => !prev);
-    },
-  });
-
-  const handlePhoneVerificationToggle = (checked: boolean) => {
-    setPhoneVerificationEnabled(checked);
-    savePhoneVerification.mutate(checked);
-  };
 
   return (
     <div className="p-6 space-y-6 bg-gray-50/50 min-h-screen rtl">
@@ -152,7 +106,6 @@ export default function AdminSecurity() {
         </Card>
 
         <div className="space-y-6">
-          {/* إعدادات الحماية الأساسية */}
           <Card>
             <CardHeader>
               <CardTitle>إعدادات الحماية</CardTitle>
@@ -163,11 +116,11 @@ export default function AdminSecurity() {
                   <Label>المصادقة الثنائية (2FA)</Label>
                   <p className="text-xs text-gray-500">تطلب رمزاً إضافياً عند الدخول</p>
                 </div>
-                <Switch checked={securitySettings?.twoFactorEnabled ?? false} />
+                <Switch checked={securitySettings?.twoFactorEnabled} />
               </div>
               <div className="space-y-2">
                 <Label>تعقيد كلمة المرور</Label>
-                <Select value={securitySettings?.passwordComplexity ?? 'medium'}>
+                <Select value={securitySettings?.passwordComplexity}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -180,57 +133,8 @@ export default function AdminSecurity() {
               </div>
               <div className="space-y-2">
                 <Label>مدة الجلسة (دقائق)</Label>
-                <Input type="number" value={securitySettings?.sessionTimeout ?? 60} readOnly />
+                <Input type="number" value={securitySettings?.sessionTimeout} />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* التحقق من رقم الهاتف */}
-          <Card className="border-blue-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Phone className="w-4 h-4 text-blue-600" />
-                التحقق من رقم الهاتف
-              </CardTitle>
-              <CardDescription className="text-xs">
-                عند التفعيل، يُرسل الخادم رمز تحقق نصي (OTP) لرقم الهاتف عند التسجيل
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-semibold">التحقق عبر رسالة نصية</Label>
-                  <p className="text-xs text-gray-500">
-                    {phoneVerificationEnabled
-                      ? '✅ يُطلب رمز OTP عند تسجيل كل عميل جديد'
-                      : '🔓 التسجيل بدون تحقق من رقم الهاتف'}
-                  </p>
-                </div>
-                <Switch
-                  checked={phoneVerificationEnabled}
-                  onCheckedChange={handlePhoneVerificationToggle}
-                  disabled={savePhoneVerification.isPending}
-                />
-              </div>
-
-              {phoneVerificationEnabled ? (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-1">
-                  <p className="text-xs font-medium text-blue-800">🔒 التحقق مفعّل</p>
-                  <p className="text-xs text-blue-700">
-                    سيتلقى العملاء الجدد رمز تحقق على هاتفهم قبل إتمام التسجيل.
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    ملاحظة: يتطلب ربط خدمة SMS (مثل Unifonic / Twilio) لإرسال الرسائل الفعلية.
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs font-medium text-amber-800">⚠️ التحقق معطل</p>
-                  <p className="text-xs text-amber-700">
-                    يمكن للعملاء التسجيل بأي رقم هاتف دون التحقق من صحته.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

@@ -20,19 +20,6 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// تشغيل صوت الإشعار بشكل آمن (يتجاهل الخطأ إذا حجب المتصفح التشغيل التلقائي)
-function playNotificationSound() {
-  try {
-    const audio = new Audio('/notification.mp3');
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // المتصفح يحجب التشغيل التلقائي — هذا طبيعي قبل تفاعل المستخدم
-      });
-    }
-  } catch (_) {}
-}
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { user } = useAuth();
@@ -97,8 +84,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               duration: 8000
             });
             
-            // تشغيل صوت الإشعار (يتطلب تفاعل المستخدم في المتصفح)
-            playNotificationSound();
+            // Play sound if possible
+            try {
+              const audio = new Audio('/notification.mp3');
+              audio.play();
+            } catch (e) {}
           } else if (data.type === 'order_status_changed' || data.type === 'order_update') {
             const { orderId, status, message: msg, orderNumber } = data.payload || {};
             const statusLabels: Record<string, string> = {
@@ -117,7 +107,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               message: msg || label || `تحديث طلب ${orderNumber || orderId}`,
               duration: 10000
             });
-            playNotificationSound();
+            
+            try {
+              const audio = new Audio('/notification.mp3');
+              audio.play();
+            } catch (e) {}
           } else if (data.type === 'settings_changed') {
              // Invalidate UI settings if we have access to queryClient here
              // or just show a message. Better to handle this in useSettingsSync

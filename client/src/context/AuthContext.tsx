@@ -92,10 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const clearAuthState = () => {
-    // مسح جميع مفاتيح المصادقة من localStorage
-    ['auth_token', 'is_guest', 'customer_phone', 'customer_name', 'customer_id'].forEach(k =>
-      localStorage.removeItem(k)
-    );
+    localStorage.removeItem('auth_token');
     setAuthState({
       isAuthenticated: false,
       user: null,

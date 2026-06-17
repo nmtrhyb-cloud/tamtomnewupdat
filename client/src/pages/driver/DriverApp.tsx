@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import EnhancedDriverDashboard from './EnhancedDriverDashboard';
-import DriverErrorBoundary from '@/components/DriverErrorBoundary';
 
 export default function DriverApp() {
   const [driverId, setDriverId] = useState<string>('');
@@ -41,9 +40,5 @@ export default function DriverApp() {
     );
   }
 
-  return (
-    <DriverErrorBoundary>
-      <EnhancedDriverDashboard driverId={driverId} onLogout={handleLogout} />
-    </DriverErrorBoundary>
-  );
+  return <EnhancedDriverDashboard driverId={driverId} onLogout={handleLogout} />;
 }
