@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LocationProvider, useUserLocation } from "./context/LocationContext";
 import { UiSettingsProvider, useUiSettings } from "./context/UiSettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
-import AppErrorBoundary from "./components/AppErrorBoundary";
 import { LocationPermissionModal } from "./components/LocationPermissionModal";
 import Layout from "./components/Layout";
 import FloatingCartNotification from "./components/FloatingCartNotification";
@@ -32,12 +31,6 @@ import TrackOrdersPage from "./pages/TrackOrdersPage";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import SearchPage from "./pages/SearchPage";
-import CategoryPage from "./pages/CategoryPage";
-import ProductDetails from "./pages/ProductDetails";
-import CustomerAuthPage from "./pages/CustomerAuthPage";
-import Favorites from "./pages/Favorites";
-import CustomerAddresses from "./pages/CustomerAddresses";
-import WasalniPage from "./pages/WasalniPage";
 // Admin pages removed - now handled separately
 import NotFound from "@/pages/not-found";
 
@@ -120,7 +113,7 @@ function MainApp() {
 
   // Default customer app
   return (
-    <AppErrorBoundary>
+    <>
       <StoreStatusNotifier />
       <Layout>
         <Router />
@@ -139,9 +132,16 @@ function MainApp() {
           }}
         />
       )}
-    </AppErrorBoundary>
+    </>
   );
 }
+
+import CategoryPage from "./pages/CategoryPage";
+import ProductDetails from "./pages/ProductDetails";
+import CustomerAuthPage from "./pages/CustomerAuthPage";
+import Favorites from "./pages/Favorites";
+import CustomerAddresses from "./pages/CustomerAddresses";
+import WasalniPage from "./pages/WasalniPage";
 
 function Router() {
   // Check UiSettings for page visibility
