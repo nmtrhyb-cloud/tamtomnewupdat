@@ -160,7 +160,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               <div className="flex flex-col leading-none">
                 <span className="text-3xl font-black text-white tracking-tight">{appName}</span>
-                <span className="text-[10px] font-bold text-[#F5A623] tracking-[0.35em] mt-1">WASEL</span>
+                <span className="text-[10px] font-bold text-[#F5A623] tracking-[0.35em] mt-1">طمطوم</span>
               </div>
             </div>
 
