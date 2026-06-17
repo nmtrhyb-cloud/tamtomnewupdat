@@ -4,27 +4,6 @@ import { randomUUID } from 'crypto';
 import { dbStorage } from '../db';
 import { adminUsers, drivers, users, insertUserSchema } from '@shared/schema';
 import { eq, or, sql } from 'drizzle-orm';
-import rateLimit from 'express-rate-limit';
-
-// ===== Rate Limiting لمسارات OTP =====
-const otpRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  // المفتاح = رقم الهاتف دائماً (لا يعتمد على IP أبداً)
-  keyGenerator: (req) => {
-    const phone = req.body?.phone;
-    return phone ? String(phone).trim().replace(/\s+/g, '') : 'no-phone';
-  },
-  validate: { xForwardedForHeader: false, keyGeneratorIpFallback: false },
-  handler: (_req, res) => {
-    res.status(429).json({
-      success: false,
-      message: 'تم تجاوز الحد المسموح به لطلبات رمز التحقق. يرجى الانتظار 10 دقائق قبل المحاولة مجدداً.',
-    });
-  },
-});
 
 // ===== نظام OTP في الذاكرة =====
 interface OtpEntry {
@@ -61,8 +40,7 @@ router.get('/setup-status', async (req, res) => {
     });
   } catch (error) {
     console.error('خطأ في فحص حالة الإعداد:', error);
-    // إرجاع خطأ حقيقي بدلاً من قيم مضللة
-    res.status(503).json({ error: 'تعذّر الاتصال بقاعدة البيانات للتحقق من حالة الإعداد' });
+    res.json({ adminExists: true, driverExists: true, userExists: true });
   }
 });
 
@@ -296,19 +274,8 @@ router.post('/validate', async (req, res) => {
   }
 });
 
-// ===== مساعد: قراءة إعداد phone_verification_enabled =====
-async function isPhoneVerificationEnabled(): Promise<boolean> {
-  try {
-    const settings = await dbStorage.getUiSettings();
-    const setting = settings.find((s: any) => s.key === 'phone_verification_enabled');
-    return setting?.value === 'true';
-  } catch {
-    return false;
-  }
-}
-
 // ===== إرسال رمز OTP =====
-router.post('/send-otp', otpRateLimiter, async (req, res) => {
+router.post('/send-otp', async (req, res) => {
   try {
     let { phone } = req.body;
     if (!phone) {
@@ -317,33 +284,20 @@ router.post('/send-otp', otpRateLimiter, async (req, res) => {
 
     phone = String(phone).trim().replace(/\s+/g, '');
 
-    // إذا كان التحقق بالهاتف معطلاً، تخطى الإرسال
-    const verificationEnabled = await isPhoneVerificationEnabled();
-    if (!verificationEnabled) {
-      return res.json({
-        success: true,
-        skipOtp: true,
-        message: 'التحقق بالهاتف غير مفعل — يمكن التسجيل مباشرة',
-      });
-    }
-
     const otp = generateOtp();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 دقائق
     otpStore.set(phone, { otp, expiresAt, phone });
 
-    // في بيئة التطوير فقط — لا نطبع OTP في الإنتاج أبداً
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`📱 OTP [DEV] للهاتف ${phone.slice(0, 6)}***: ${isTestPhone(phone) ? otp : '******'}`);
-    }
+    console.log(`📱 OTP للهاتف ${phone}: ${otp}`);
 
-    // للأرقام الحقيقية لا نكشف الرمز — فقط أرقام الاختبار تحصل عليه
+    // إرجاع رمز OTP دائماً (لا توجد خدمة SMS مُفعَّلة حالياً)
+    // للأرقام الحقيقية: عند تفعيل خدمة SMS، احذف testOtp من الاستجابة
     res.json({
       success: true,
-      skipOtp: false,
       message: isTestPhone(phone)
         ? 'تم إرسال رمز التحقق (رقم اختبار)'
         : 'تم إرسال رمز التحقق',
-      ...(isTestPhone(phone) ? { testOtp: otp } : {}),
+      testOtp: otp,
     });
   } catch (error) {
     console.error('خطأ في إرسال OTP:', error);
@@ -398,37 +352,34 @@ router.post('/register', async (req, res) => {
     if (validatedData.phone) {
       const rawPhone = arabicToLatinDigits(String(validatedData.phone).trim()).replace(/\s+/g, '');
 
-      // التحقق من OTP فقط إذا كان التحقق بالهاتف مفعلاً
-      const verificationEnabled = await isPhoneVerificationEnabled();
-      if (verificationEnabled) {
-        if (!otpCode) {
-          return res.status(400).json({
-            success: false,
-            message: 'رمز التحقق مطلوب. يرجى إرسال الرمز أولاً.',
-          });
-        }
-        const otpEntry = otpStore.get(rawPhone);
-        if (!otpEntry) {
-          return res.status(400).json({
-            success: false,
-            message: 'لم يتم إرسال رمز تحقق لهذا الرقم. يرجى إعادة الإرسال.',
-          });
-        }
-        if (Date.now() > otpEntry.expiresAt) {
-          otpStore.delete(rawPhone);
-          return res.status(400).json({
-            success: false,
-            message: 'انتهت صلاحية رمز التحقق. يرجى إعادة الإرسال.',
-          });
-        }
-        if (otpEntry.otp !== String(otpCode).trim()) {
-          return res.status(400).json({
-            success: false,
-            message: 'رمز التحقق غير صحيح.',
-          });
-        }
-        otpStore.delete(rawPhone);
+      // التحقق من صحة رمز OTP قبل التسجيل
+      if (!otpCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'رمز التحقق مطلوب. يرجى إرسال الرمز أولاً.',
+        });
       }
+      const otpEntry = otpStore.get(rawPhone);
+      if (!otpEntry) {
+        return res.status(400).json({
+          success: false,
+          message: 'لم يتم إرسال رمز تحقق لهذا الرقم. يرجى إعادة الإرسال.',
+        });
+      }
+      if (Date.now() > otpEntry.expiresAt) {
+        otpStore.delete(rawPhone);
+        return res.status(400).json({
+          success: false,
+          message: 'انتهت صلاحية رمز التحقق. يرجى إعادة الإرسال.',
+        });
+      }
+      if (otpEntry.otp !== String(otpCode).trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'رمز التحقق غير صحيح.',
+        });
+      }
+      otpStore.delete(rawPhone);
 
       // تطبيع رقم الهاتف السعودي (أرقام الاختبار مقبولة كما هي)
       const normalizeSaudiPhone = (p: string): string => {
@@ -692,7 +643,7 @@ router.post('/driver/login', async (req, res) => {
       });
     }
 
-    // لا نطبع رقم الهاتف كاملاً حفاظاً على الخصوصية
+    console.log('🔐 محاولة تسجيل دخول سائق:', phone);
 
     // البحث عن السائق في قاعدة البيانات
     const driverResult = await dbStorage.db

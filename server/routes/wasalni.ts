@@ -207,25 +207,12 @@ router.get("/number/:requestNumber", async (req, res) => {
   }
 });
 
-const WASALNI_VALID_STATUSES = ['pending', 'confirmed', 'on_way', 'delivered', 'cancelled', 'scheduled'] as const;
-
 // Update wasalni request status (admin)
 router.put("/:id", async (req, res) => {
   try {
     const db = (storage as any).db;
     const { eq } = await import("drizzle-orm");
     const { status, driverId, adminNotes, cancelReason, estimatedFee } = req.body;
-
-    // التحقق من صحة الحالة
-    if (status !== undefined && !WASALNI_VALID_STATUSES.includes(status)) {
-      return res.status(400).json({
-        error: `حالة غير صالحة: "${status}". القيم المسموحة: ${WASALNI_VALID_STATUSES.join('، ')}`,
-      });
-    }
-    // التحقق من صحة estimatedFee
-    if (estimatedFee !== undefined && isNaN(parseFloat(estimatedFee))) {
-      return res.status(400).json({ error: "رسوم التوصيل يجب أن تكون رقماً صحيحاً" });
-    }
 
     const updateData: any = { updatedAt: new Date() };
     if (status) updateData.status = status;

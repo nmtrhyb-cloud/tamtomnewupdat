@@ -204,21 +204,7 @@ router.get("/special-offers", async (req, res) => {
 router.post("/orders", async (req, res) => {
   try {
     const orderData = req.body;
-
-    // التحقق من الحقول الأساسية
-    if (!orderData.customerName || typeof orderData.customerName !== 'string') {
-      return res.status(400).json({ error: "اسم العميل مطلوب" });
-    }
-    if (!orderData.customerPhone || typeof orderData.customerPhone !== 'string') {
-      return res.status(400).json({ error: "رقم هاتف العميل مطلوب" });
-    }
-    if (!Array.isArray(orderData.items) || orderData.items.length === 0) {
-      return res.status(400).json({ error: "يجب أن يحتوي الطلب على منتج واحد على الأقل" });
-    }
-    if (orderData.totalAmount === undefined || isNaN(parseFloat(orderData.totalAmount))) {
-      return res.status(400).json({ error: "المبلغ الإجمالي مطلوب" });
-    }
-
+    
     // توليد رقم طلب فريد
     const orderNumber = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
     
