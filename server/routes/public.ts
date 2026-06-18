@@ -70,88 +70,29 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// جلب المطاعم
-router.get("/restaurants", async (req, res) => {
-  try {
-    const { categoryId, search } = req.query;
-    
-    let restaurants;
-    if (search) {
-      restaurants = await storage.searchRestaurants(`%${search}%`, categoryId as string);
-    } else if (categoryId && categoryId !== 'all') {
-      const cacheKey = `restaurants-cat-${categoryId}`;
-      const cached = getCached<any[]>(cacheKey);
-      if (cached) return res.json(cached);
-      restaurants = await storage.getRestaurantsByCategory(categoryId as string);
-      setCached(cacheKey, restaurants, 45_000);
-    } else {
-      const cached = getCached<any[]>('restaurants-all');
-      if (cached) return res.json(cached);
-      restaurants = await storage.getRestaurants();
-      setCached('restaurants-all', restaurants, 45_000);
-    }
-
-    res.json(restaurants);
-  } catch (error) {
-    console.error("خطأ في جلب المطاعم:", error);
-    res.status(500).json({ message: "Failed to fetch restaurants" });
-  }
+// جلب المطاعم - يعيد متجر طمطوم الوحيد (single-store)
+router.get("/restaurants", async (_req, res) => {
+  res.json([]);
 });
 
-// جلب تفاصيل مطعم محدد
-router.get("/restaurants/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const restaurant = await storage.getRestaurant(id);
-
-    if (!restaurant) {
-      return res.status(404).json({ message: "المطعم غير موجود" });
-    }
-
-    res.json(restaurant);
-  } catch (error) {
-    console.error("خطأ في جلب تفاصيل المطعم:", error);
-    res.status(500).json({ message: "Failed to fetch restaurant" });
-  }
+// جلب تفاصيل متجر (stub)
+router.get("/restaurants/:id", async (_req, res) => {
+  res.json(null);
 });
 
-// جلب قائمة مطعم
-router.get("/restaurants/:id/menu", async (req, res) => {
+// جلب قائمة المنتجات
+router.get("/restaurants/:id/menu", async (_req, res) => {
   try {
-    const { id } = req.params;
-    
-    // التحقق من وجود المطعم
-    const restaurant = await storage.getRestaurant(id);
-
-    if (!restaurant) {
-      return res.status(404).json({ message: "المطعم غير موجود" });
-    }
-
-    // جلب عناصر القائمة
-    const menuItems = await storage.getMenuItems(id);
-
-    res.json({
-      restaurant,
-      menu: [],
-      allItems: menuItems
-    });
+    const menuItems = await storage.getAllMenuItems();
+    res.json({ restaurant: null, menu: [], allItems: menuItems });
   } catch (error) {
-    console.error("خطأ في جلب قائمة المطعم:", error);
     res.status(500).json({ message: "Failed to fetch menu items" });
   }
 });
 
-// جلب أقسام المطعم
-router.get("/restaurants/:id/sections", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sections = await storage.getRestaurantSections(id);
-    res.json(sections);
-  } catch (error) {
-    console.error("خطأ في جلب أقسام المطعم:", error);
-    res.status(500).json({ message: "Failed to fetch restaurant sections" });
-  }
+// جلب أقسام المتجر (stub)
+router.get("/restaurants/:id/sections", async (_req, res) => {
+  res.json([]);
 });
 
 // تقييم مطعم مباشرة

@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import bcrypt from "bcryptjs";
 import { 
-  adminUsers, categories, restaurantSections, restaurants, 
+  adminUsers, categories,
   menuItems, users, customers, userAddresses, orders, specialOffers, 
   notifications, ratings, systemSettingsTable as systemSettings, drivers, orderTracking,
   cart, favorites, employees, attendance, leaveRequests, driverEarningsTable,
@@ -11,12 +11,10 @@ import {
   deliveryFeeSettings, deliveryZones, financialReports,
   geoZones, deliveryRules, deliveryDiscounts,
   messages, auditLogs, paymentGateways,
-  paymentMethods, paymentMethodDocuments, coupons, couponUsages, restaurantWallets, wasalniRequests,
+  paymentMethods, paymentMethodDocuments, coupons, couponUsages, wasalniRequests,
   driverReviews, walletTransactions, loyaltyTransactions, supportTickets,
   type AdminUser, type InsertAdminUser,
   type Category, type InsertCategory,
-  type Restaurant, type InsertRestaurant,
-  type RestaurantSection, type InsertRestaurantSection,
   type MenuItem, type InsertMenuItem,
   type User, type InsertUser,
   type UserAddress, type InsertUserAddress,
@@ -94,8 +92,6 @@ function getDb() {
     const schema = {
       adminUsers,
       categories,
-      restaurantSections,
-      restaurants,
       menuItems,
       users,
       customers,
@@ -255,8 +251,7 @@ export class DatabaseStorage {
   async deleteCategory(id: string): Promise<boolean> {
     try {
       // Set categoryId to null in restaurants
-      await this.db.update(restaurants).set({ categoryId: null }).where(eq(restaurants.categoryId, id));
-      // Delete special offers linked to this category
+            // Delete special offers linked to this category
       await this.db.delete(specialOffers).where(eq(specialOffers.categoryId, id));
       
       const result = await this.db.delete(categories).where(eq(categories.id, id));
@@ -268,84 +263,44 @@ export class DatabaseStorage {
   }
 
   // Restaurants
-  async getMainRestaurant(): Promise<Restaurant | undefined> {
-    try {
-      const allRestaurants = await this.db.select().from(restaurants);
-      return allRestaurants.find(r => r.name.includes('طمطوم')) || allRestaurants[0];
-    } catch (error) {
-      console.error('Error fetching main restaurant:', error);
-      return undefined;
-    }
+  async getMainRestaurant(): Promise<any | undefined> {
+    return undefined;
   }
 
-  async getRestaurant(id: string): Promise<Restaurant | undefined> {
-    const [restaurant] = await this.db.select().from(restaurants).where(eq(restaurants.id, id));
-    return restaurant;
+  async getRestaurant(id: string): Promise<any | undefined> {
+    return undefined;
   }
 
-  async getRestaurantsByCategory(categoryId: string): Promise<Restaurant[]> {
-    return await this.db.select().from(restaurants).where(eq(restaurants.categoryId, categoryId));
+  async getRestaurantsByCategory(categoryId: string): Promise<any[]> {
+    return [];
   }
 
-  async createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant> {
-    const [newRestaurant] = await this.db.insert(restaurants).values(restaurant).returning();
-    return newRestaurant;
+  async createRestaurant(restaurant: any): Promise<any> {
+    return {};
   }
 
-  async updateRestaurant(id: string, restaurant: Partial<InsertRestaurant>): Promise<Restaurant | undefined> {
-    const [updated] = await this.db.update(restaurants).set(restaurant).where(eq(restaurants.id, id)).returning();
-    return updated;
+  async updateRestaurant(id: string, restaurant: any): Promise<any | undefined> {
+    return undefined;
   }
 
   async deleteRestaurant(id: string): Promise<boolean> {
-    try {
-      // Set restaurantId to null in menuItems
-      await this.db.update(menuItems).set({ restaurantId: null }).where(eq(menuItems.restaurantId, id));
-      // Set restaurantId to null in orders
-      await this.db.update(orders).set({ restaurantId: null }).where(eq(orders.restaurantId, id));
-      // Delete restaurant sections
-      await this.db.delete(restaurantSections).where(eq(restaurantSections.restaurantId, id));
-      // Delete ratings
-      await this.db.delete(ratings).where(eq(ratings.restaurantId, id));
-      // Delete special offers
-      await this.db.delete(specialOffers).where(eq(specialOffers.restaurantId, id));
-      // Delete from favorites
-      await this.db.delete(favorites).where(eq(favorites.restaurantId, id));
-      // Delete from cart
-      await this.db.delete(cart).where(eq(cart.restaurantId, id));
-      // Delete from deliveryFeeSettings
-      await this.db.delete(deliveryFeeSettings).where(eq(deliveryFeeSettings.restaurantId, id));
-
-      const result = await this.db.delete(restaurants).where(eq(restaurants.id, id));
-      return result.rowCount > 0;
-    } catch (error) {
-      console.error('Error deleting restaurant:', error);
-      throw error;
-    }
+    return false;
   }
 
-  // Menu Items
-  async getRestaurantSections(restaurantId: string): Promise<RestaurantSection[]> {
-    return await this.db
-      .select()
-      .from(restaurantSections)
-      .where(eq(restaurantSections.restaurantId, restaurantId))
-      .orderBy(restaurantSections.sortOrder);
+  async getRestaurantSections(restaurantId: string): Promise<any[]> {
+    return [];
   }
 
-  async createRestaurantSection(section: InsertRestaurantSection): Promise<RestaurantSection> {
-    const [newSection] = await this.db.insert(restaurantSections).values(section).returning();
-    return newSection;
+  async createRestaurantSection(section: any): Promise<any> {
+    return {};
   }
 
-  async updateRestaurantSection(id: string, section: Partial<InsertRestaurantSection>): Promise<RestaurantSection | undefined> {
-    const [updated] = await this.db.update(restaurantSections).set(section).where(eq(restaurantSections.id, id)).returning();
-    return updated;
+  async updateRestaurantSection(id: string, section: any): Promise<any | undefined> {
+    return undefined;
   }
 
   async deleteRestaurantSection(id: string): Promise<boolean> {
-    const result = await this.db.delete(restaurantSections).where(eq(restaurantSections.id, id)).returning();
-    return result.length > 0;
+    return false;
   }
 
   async getMenuItems(restaurantId: string): Promise<MenuItem[]> {
@@ -395,47 +350,15 @@ export class DatabaseStorage {
   async getOrders(): Promise<any[]> {
     try {
       const result = await this.db.select({
-        id: orders.id,
-        orderNumber: orders.orderNumber,
-        customerName: orders.customerName,
-        customerPhone: orders.customerPhone,
-        customerEmail: orders.customerEmail,
-        customerId: orders.customerId,
-        deliveryAddress: orders.deliveryAddress,
-        customerLocationLat: orders.customerLocationLat,
-        customerLocationLng: orders.customerLocationLng,
-        notes: orders.notes,
-        paymentMethod: orders.paymentMethod,
-        status: orders.status,
-        items: orders.items,
-        subtotal: orders.subtotal,
-        deliveryFee: orders.deliveryFee,
-        total: orders.total,
-        totalAmount: orders.totalAmount,
-        estimatedTime: orders.estimatedTime,
-        driverEarnings: orders.driverEarnings,
-        restaurantEarnings: orders.restaurantEarnings,
-        companyEarnings: orders.companyEarnings,
-        distance: orders.distance,
-        restaurantId: orders.restaurantId,
-        driverId: orders.driverId,
-        createdAt: orders.createdAt,
-        updatedAt: orders.updatedAt,
-        restaurantName: restaurants.name,
-        restaurantPhone: restaurants.phone,
-        restaurantAddress: restaurants.address,
-        restaurantImage: restaurants.image,
-        restaurantLatitude: restaurants.latitude,
-        restaurantLongitude: restaurants.longitude,
+        order: orders,
         driverName: drivers.name,
         driverPhone: drivers.phone,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .leftJoin(drivers, eq(orders.driverId, drivers.id))
       .orderBy(desc(orders.createdAt));
       
-      return Array.isArray(result) ? result : [];
+      return result.map(r => ({ ...r.order, driverName: r.driverName, driverPhone: r.driverPhone }));
     } catch (error) {
       console.error('Error fetching orders:', error);
       return [];
@@ -444,48 +367,16 @@ export class DatabaseStorage {
 
   async getOrder(id: string): Promise<any | undefined> {
     try {
-      const [order] = await this.db.select({
-        id: orders.id,
-        orderNumber: orders.orderNumber,
-        customerName: orders.customerName,
-        customerPhone: orders.customerPhone,
-        customerEmail: orders.customerEmail,
-        customerId: orders.customerId,
-        deliveryAddress: orders.deliveryAddress,
-        customerLocationLat: orders.customerLocationLat,
-        customerLocationLng: orders.customerLocationLng,
-        notes: orders.notes,
-        paymentMethod: orders.paymentMethod,
-        status: orders.status,
-        items: orders.items,
-        subtotal: orders.subtotal,
-        deliveryFee: orders.deliveryFee,
-        total: orders.total,
-        totalAmount: orders.totalAmount,
-        estimatedTime: orders.estimatedTime,
-        driverEarnings: orders.driverEarnings,
-        restaurantEarnings: orders.restaurantEarnings,
-        companyEarnings: orders.companyEarnings,
-        distance: orders.distance,
-        restaurantId: orders.restaurantId,
-        driverId: orders.driverId,
-        createdAt: orders.createdAt,
-        updatedAt: orders.updatedAt,
-        restaurantName: restaurants.name,
-        restaurantPhone: restaurants.phone,
-        restaurantAddress: restaurants.address,
-        restaurantImage: restaurants.image,
-        restaurantLatitude: restaurants.latitude,
-        restaurantLongitude: restaurants.longitude,
+      const [row] = await this.db.select({
+        order: orders,
         driverName: drivers.name,
         driverPhone: drivers.phone,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .leftJoin(drivers, eq(orders.driverId, drivers.id))
       .where(eq(orders.id, id));
       
-      return order;
+      return row ? { ...row.order, driverName: row.driverName, driverPhone: row.driverPhone } : undefined;
     } catch (error) {
       console.error('Error fetching order:', error);
       return undefined;
@@ -504,10 +395,8 @@ export class DatabaseStorage {
         items: orders.items,
         totalAmount: orders.totalAmount,
         createdAt: orders.createdAt,
-        restaurantName: restaurants.name,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .where(eq(orders.restaurantId, restaurantId))
       .orderBy(desc(orders.createdAt));
       
@@ -526,46 +415,16 @@ export class DatabaseStorage {
         ? sql`(REPLACE(${orders.customerPhone}, ' ', '') = ${cleanPhone} OR ${orders.customerId} = ${customerId})`
         : sql`REPLACE(${orders.customerPhone}, ' ', '') = ${cleanPhone}`;
       const result = await this.db.select({
-        id: orders.id,
-        orderNumber: orders.orderNumber,
-        customerName: orders.customerName,
-        customerPhone: orders.customerPhone,
-        customerEmail: orders.customerEmail,
-        customerId: orders.customerId,
-        deliveryAddress: orders.deliveryAddress,
-        customerLocationLat: orders.customerLocationLat,
-        customerLocationLng: orders.customerLocationLng,
-        notes: orders.notes,
-        paymentMethod: orders.paymentMethod,
-        status: orders.status,
-        items: orders.items,
-        subtotal: orders.subtotal,
-        deliveryFee: orders.deliveryFee,
-        total: orders.total,
-        totalAmount: orders.totalAmount,
-        estimatedTime: orders.estimatedTime,
-        driverEarnings: orders.driverEarnings,
-        restaurantEarnings: orders.restaurantEarnings,
-        companyEarnings: orders.companyEarnings,
-        distance: orders.distance,
-        restaurantId: orders.restaurantId,
-        driverId: orders.driverId,
-        createdAt: orders.createdAt,
-        updatedAt: orders.updatedAt,
-        restaurantName: restaurants.name,
-        restaurantPhone: restaurants.phone,
-        restaurantAddress: restaurants.address,
-        restaurantImage: restaurants.image,
+        order: orders,
         driverName: drivers.name,
         driverPhone: drivers.phone,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .leftJoin(drivers, eq(orders.driverId, drivers.id))
       .where(matchClause)
       .orderBy(desc(orders.createdAt));
       
-      return Array.isArray(result) ? result : [];
+      return result.map(r => ({ ...r.order, driverName: r.driverName, driverPhone: r.driverPhone }));
     } catch (error) {
       console.error('Error fetching customer orders:', error);
       return [];
@@ -986,263 +845,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   // Enhanced Search Functions
-  async searchRestaurants(searchTerm: string, categoryId?: string, userLocation?: {lat: number, lon: number}): Promise<Restaurant[]> {
-    const conditions = [
-      eq(restaurants.isActive, true),
-      or(
-        like(restaurants.name, `%${searchTerm}%`),
-        like(restaurants.description, `%${searchTerm}%`),
-        like(restaurants.address, `%${searchTerm}%`)
-      )
-    ];
-    
-    if (categoryId) {
-      conditions.push(eq(restaurants.categoryId, categoryId));
-    }
-    
-    const result = await this.db.select().from(restaurants)
-      .where(and(...conditions))
-      .orderBy(restaurants.name);
-    
-    const restaurants_list = Array.isArray(result) ? result : [];
-    
-    // Add distance if user location is provided
-    if (userLocation) {
-      return restaurants_list.map(restaurant => ({
-        ...restaurant,
-        distance: restaurant.latitude && restaurant.longitude ? 
-          this.calculateDistance(
-            userLocation.lat,
-            userLocation.lon,
-            parseFloat(restaurant.latitude),
-            parseFloat(restaurant.longitude)
-          ) : null
-      }));
-    }
-    
-    return restaurants_list;
-  }
-
-  async searchCategories(searchTerm: string): Promise<Category[]> {
-    const result = await this.db.select().from(categories)
-      .where(
-        and(
-          eq(categories.isActive, true),
-          like(categories.name, `%${searchTerm}%`)
-        )
-      )
-      .orderBy(categories.name);
-    return Array.isArray(result) ? result : [];
-  }
-
-  async searchMenuItems(searchTerm: string): Promise<MenuItem[]> {
-    const result = await this.db.select().from(menuItems)
-      .where(
-        and(
-          eq(menuItems.isAvailable, true),
-          or(
-            like(menuItems.name, `%${searchTerm}%`),
-            like(menuItems.description, `%${searchTerm}%`),
-            like(menuItems.category, `%${searchTerm}%`)
-          )
-        )
-      )
-      .orderBy(menuItems.name);
-    return Array.isArray(result) ? result : [];
-  }
-
-  // Enhanced Restaurant Functions with Search and Filtering
-  async getRestaurants(filters?: { 
-    categoryId?: string; 
-    area?: string; 
-    isOpen?: boolean;
-    isFeatured?: boolean;
-    isNew?: boolean;
-    search?: string;
-    sortBy?: 'name' | 'rating' | 'deliveryTime' | 'distance' | 'newest';
-    userLatitude?: number;
-    userLongitude?: number;
-    radius?: number; // in kilometers
-  }): Promise<Restaurant[]> {
-    const conditions = [eq(restaurants.isActive, true)];
-    
-    if (filters?.categoryId) {
-      conditions.push(eq(restaurants.categoryId, filters.categoryId));
-    }
-    
-    if (filters?.isOpen !== undefined) {
-      conditions.push(eq(restaurants.isOpen, filters.isOpen));
-    }
-    
-    if (filters?.isFeatured) {
-      conditions.push(eq(restaurants.isFeatured, true));
-    }
-    
-    if (filters?.isNew) {
-      conditions.push(eq(restaurants.isNew, true));
-    }
-    
-    if (filters?.search) {
-      conditions.push(
-        sql`(
-          ${restaurants.name} ILIKE ${'%' + filters.search + '%'} OR
-          COALESCE(${restaurants.description}, '') ILIKE ${'%' + filters.search + '%'} OR
-          COALESCE(${restaurants.address}, '') ILIKE ${'%' + filters.search + '%'}
-        )`
-      );
-    }
-    
-    // Build and execute query with temporary type assertion for compilation
-    let baseQuery: any = this.db.select().from(restaurants);
-    
-    if (conditions.length > 0) {
-      baseQuery = baseQuery.where(and(...conditions));
-    }
-    
-    // Apply sorting
-    switch (filters?.sortBy) {
-      case 'rating':
-        // Convert varchar rating to numeric for proper sorting
-        baseQuery = baseQuery.orderBy(sql`(${restaurants.rating})::numeric DESC`);
-        break;
-      case 'deliveryTime':
-        baseQuery = baseQuery.orderBy(asc(restaurants.deliveryTime));
-        break;
-      case 'newest':
-        baseQuery = baseQuery.orderBy(desc(restaurants.createdAt));
-        break;
-      case 'distance':
-        // Will handle distance sorting in the application layer
-        baseQuery = baseQuery.orderBy(restaurants.name);
-        break;
-      default:
-        baseQuery = baseQuery.orderBy(restaurants.name);
-    }
-    
-    const result = await baseQuery;
-    const restaurants_list = Array.isArray(result) ? result : [];
-    
-    // If user location is provided and we're sorting by distance
-    if (filters?.userLatitude && filters?.userLongitude && filters?.sortBy === 'distance') {
-      return this.sortRestaurantsByDistance(
-        restaurants_list, 
-        filters.userLatitude, 
-        filters.userLongitude,
-        filters.radius
-      );
-    }
-    
-    // Filter by radius if provided
-    if (filters?.userLatitude && filters?.userLongitude && filters?.radius) {
-      return restaurants_list.filter(restaurant => {
-        if (!restaurant.latitude || !restaurant.longitude) return false;
-        const distance = this.calculateDistance(
-          filters.userLatitude!,
-          filters.userLongitude!,
-          parseFloat(restaurant.latitude),
-          parseFloat(restaurant.longitude)
-        );
-        return distance <= filters.radius!;
-      });
-    }
-    
-    return restaurants_list;
-  }
-
-  // Distance calculation using Haversine formula
-  calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = this.toRadians(lat2 - lat1);
-    const dLon = this.toRadians(lon2 - lon1);
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  private toRadians(degrees: number): number {
-    return degrees * (Math.PI / 180);
-  }
-
-  // Sort restaurants by distance
-  private sortRestaurantsByDistance(
-    restaurants_list: Restaurant[], 
-    userLat: number, 
-    userLon: number,
-    maxDistance?: number
-  ): Restaurant[] {
-    return restaurants_list
-      .filter(restaurant => {
-        if (!restaurant.latitude || !restaurant.longitude) return false;
-        if (!maxDistance) return true;
-        
-        const distance = this.calculateDistance(
-          userLat,
-          userLon,
-          parseFloat(restaurant.latitude),
-          parseFloat(restaurant.longitude)
-        );
-        return distance <= maxDistance;
-      })
-      .map(restaurant => ({
-        ...restaurant,
-        distance: restaurant.latitude && restaurant.longitude ? 
-          this.calculateDistance(
-            userLat,
-            userLon,
-            parseFloat(restaurant.latitude),
-            parseFloat(restaurant.longitude)
-          ) : null
-      }))
-      .sort((a, b) => (a.distance || 999) - (b.distance || 999));
-  }
-
-  // Enhanced search for menu items
-  async searchMenuItemsAdvanced(searchTerm: string, restaurantId?: string): Promise<any[]> {
-    const conditions = [
-      eq(menuItems.isAvailable, true),
-      // or(eq(restaurants.isActive, true), isNull(menuItems.restaurantId)), // Allow products without restaurant or from active restaurants
-      or(
-        like(menuItems.name, `%${searchTerm}%`),
-        like(menuItems.description, `%${searchTerm}%`),
-        like(menuItems.category, `%${searchTerm}%`)
-      )
-    ];
-    
-    if (restaurantId) {
-      conditions.push(eq(menuItems.restaurantId, restaurantId));
-    }
-    
-    const query = this.db.select({
-      id: menuItems.id,
-      name: menuItems.name,
-      description: menuItems.description,
-      price: menuItems.price,
-      originalPrice: menuItems.originalPrice,
-      image: menuItems.image,
-      category: menuItems.category,
-      isAvailable: menuItems.isAvailable,
-      isSpecialOffer: menuItems.isSpecialOffer,
-      restaurant: {
-        id: restaurants.id,
-        name: restaurants.name,
-        image: restaurants.image,
-        deliveryTime: restaurants.deliveryTime,
-        deliveryFee: restaurants.deliveryFee
-      }
-    })
-    .from(menuItems)
-    .leftJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
-    .where(and(...conditions))
-    .orderBy(menuItems.name);
-    
-    const result = await query;
-    return Array.isArray(result) ? result : [];
-  }
-
-  // Order Functions
+  
+  
   async getOrderById(id: string): Promise<any | undefined> {
     try {
       const [order] = await this.db.select({
@@ -1269,13 +873,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
         driverId: orders.driverId,
         createdAt: orders.createdAt,
         updatedAt: orders.updatedAt,
-        restaurantName: restaurants.name,
-        restaurantPhone: restaurants.phone,
-        restaurantAddress: restaurants.address,
-        restaurantImage: restaurants.image,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .where(eq(orders.id, id));
       
       return order;
@@ -1298,11 +897,8 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
         totalAmount: orders.totalAmount,
         createdAt: orders.createdAt,
         restaurantId: orders.restaurantId,
-        restaurantName: restaurants.name,
-        restaurantImage: restaurants.image,
       })
       .from(orders)
-      .leftJoin(restaurants, eq(orders.restaurantId, restaurants.id))
       .where(eq(orders.customerPhone, customerPhone))
       .orderBy(desc(orders.createdAt));
       
@@ -1340,16 +936,9 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
           image: menuItems.image,
           category: menuItems.category
         },
-        restaurant: {
-          id: restaurants.id,
-          name: restaurants.name,
-          image: restaurants.image,
-          deliveryFee: restaurants.deliveryFee
-        }
       })
       .from(cart)
       .leftJoin(menuItems, eq(cart.menuItemId, menuItems.id))
-      .leftJoin(restaurants, eq(cart.restaurantId, restaurants.id))
       .where(eq(cart.userId, userId))
       .orderBy(desc(cart.addedAt));
       
@@ -1418,20 +1007,9 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
   }
 
   // Favorites Functions - وظائف المفضلة
-  async getFavoriteRestaurants(userId: string): Promise<Restaurant[]> {
+  async getFavoriteRestaurants(userId: string): Promise<any[]> {
     try {
-      const result = await this.db.select()
-      .from(restaurants)
-      .innerJoin(favorites, eq(favorites.restaurantId, restaurants.id))
-      .where(
-        and(
-          eq(favorites.userId, userId),
-          eq(restaurants.isActive, true)
-        )
-      )
-      .orderBy(desc(favorites.addedAt));
-      
-      return Array.isArray(result) ? result.map(row => row.restaurants) : [];
+      return [];
     } catch (error) {
       console.error('Error fetching favorite restaurants:', error);
       return [];
@@ -2159,29 +1737,7 @@ async getNotifications(recipientType?: string, recipientId?: string, unread?: bo
         }
       }
 
-      // 3. Update Restaurant Earnings and Wallet
-      if (order.restaurantId) {
-        const restaurantEarnings = parseFloat(order.restaurantEarnings?.toString() || '0');
-        if (restaurantEarnings > 0) {
-          // Ensure restaurant wallet exists
-          let [rWallet] = await this.db.select().from(restaurantWallets).where(eq(restaurantWallets.restaurantId, order.restaurantId));
-          if (!rWallet) {
-            [rWallet] = await this.db.insert(restaurantWallets).values({
-              restaurantId: order.restaurantId,
-              balance: "0",
-              isActive: true
-            }).returning();
-          }
-
-          const currentBalance = parseFloat(rWallet.balance?.toString() || "0");
-          await this.db.update(restaurantWallets)
-            .set({ 
-              balance: (currentBalance + restaurantEarnings).toString(),
-              updatedAt: new Date()
-            })
-            .where(eq(restaurantWallets.restaurantId, order.restaurantId));
-        }
-      }
+      // 3. Restaurant Wallet update removed - single-store Tamtom project
 
       // 4. Create Order Tracking entry
       await this.createOrderTracking({

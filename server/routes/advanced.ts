@@ -160,107 +160,18 @@ export function registerAdvancedRoutes(app: express.Express) {
     }
   });
 
-  // ===================== RESTAURANT ROUTES =====================
+  // ===================== RESTAURANT ROUTES - removed (single-store Tamtom) =====================
 
-  // Get restaurant details with financial data
-  app.get("/api/admin/restaurants/:restaurantId/details", async (req, res) => {
-    try {
-      const { restaurantId } = req.params;
-
-      const restaurant = await dbStorage.getRestaurant(restaurantId);
-      if (!restaurant) {
-        return res.status(404).json({ error: "Restaurant not found" });
-      }
-
-      const wallet = await advancedDb.getRestaurantWallet(restaurantId);
-      const stats = await advancedDb.getRestaurantPerformanceStats(restaurantId);
-
-      res.json({
-        restaurant,
-        wallet,
-        stats
-      });
-    } catch (error) {
-      console.error("Error fetching restaurant details:", error);
-      res.status(500).json({ error: "Failed to fetch restaurant details" });
-    }
+  app.get("/api/admin/restaurants/:restaurantId/details", (_req, res) => {
+    res.json({ restaurant: null, wallet: null, stats: {} });
   });
 
-  // Get all restaurants with financial summary
-  app.get("/api/admin/restaurants-summary", async (req, res) => {
-    try {
-      const restaurants = await dbStorage.getRestaurants();
-      const summaries = await Promise.all(
-        restaurants.map(async (restaurant) => {
-          const stats = await advancedDb.getRestaurantPerformanceStats(restaurant.id);
-          const wallet = await advancedDb.getRestaurantWallet(restaurant.id);
-          return {
-            ...restaurant,
-            stats,
-            wallet: {
-              balance: wallet?.balance || 0,
-              totalEarned: wallet?.totalEarned || 0,
-              totalCommission: wallet?.totalCommission || 0
-            }
-          };
-        })
-      );
-      res.json(summaries);
-    } catch (error) {
-      console.error("Error fetching restaurants summary:", error);
-      res.status(500).json({ error: "Failed to fetch restaurants summary" });
-    }
+  app.get("/api/admin/restaurants-summary", (_req, res) => {
+    res.json([]);
   });
 
-  // Get restaurant stats for advanced dashboard
-  app.get("/api/admin/restaurants/stats", async (req, res) => {
-    try {
-      const restaurants = await dbStorage.getRestaurants();
-      const stats = await Promise.all(
-        restaurants.map(async (restaurant) => {
-          const performance = await advancedDb.getRestaurantPerformanceStats(restaurant.id);
-          const wallet = await advancedDb.getRestaurantWallet(restaurant.id);
-          
-          return {
-            id: restaurant.id,
-            name: restaurant.name,
-            ownerName: "صاحب المطعم", // Mock for now
-            phone: restaurant.phone || "",
-            email: "restaurant@example.com",
-            address: restaurant.address || "",
-            status: restaurant.isActive ? "active" : "inactive",
-            rating: parseFloat(restaurant.rating || "0"),
-            totalOrders: performance.totalOrders,
-            completedOrders: performance.completedOrders,
-            cancelledOrders: performance.totalOrders - performance.completedOrders,
-            totalRevenue: performance.totalRevenue,
-            commissionEarned: performance.totalCommission,
-            pendingCommission: 0, // Calculated if needed
-            todayRevenue: 0, // Needs date-specific stats
-            weeklyRevenue: 0,
-            monthlyRevenue: 0,
-            avgOrderValue: performance.averageOrderValue,
-            joinDate: restaurant.createdAt.toISOString(),
-            walletBalance: parseFloat(wallet?.balance?.toString() || "0"),
-            withdrawalRequests: [],
-            performance: {
-              orderCompletionRate: performance.totalOrders > 0 ? (performance.completedOrders / performance.totalOrders) * 100 : 0,
-              customerSatisfaction: parseFloat(restaurant.rating || "0") * 20,
-              averagePreparationTime: 25
-            },
-            businessHours: {
-              opening: restaurant.openingTime || "08:00",
-              closing: restaurant.closingTime || "23:00",
-              days: (restaurant.workingDays || "0,1,2,3,4,5,6").split(",")
-            }
-          };
-        })
-      );
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching restaurants stats:", error);
-      res.status(500).json({ error: "Failed to fetch restaurant stats" });
-    }
+  app.get("/api/admin/restaurants/stats", (_req, res) => {
+    res.json([]);
   });
 
   // ===================== WALLET ROUTES =====================
@@ -340,11 +251,8 @@ export function registerAdvancedRoutes(app: express.Express) {
           return res.status(400).json({ error: "Insufficient balance" });
         }
       } else if (entityType === 'restaurant') {
-        const wallet = await advancedDb.getRestaurantWallet(entityId);
-        const balance = parseFloat(wallet?.balance?.toString() || "0");
-        if (balance < numericAmount) {
-          return res.status(400).json({ error: "Insufficient balance" });
-        }
+        // Restaurant wallets removed - single-store Tamtom project
+        return res.status(400).json({ error: "Restaurant wallets not supported" });
       }
 
       const request = await advancedDb.createWithdrawalRequest({

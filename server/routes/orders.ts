@@ -2,9 +2,11 @@ import express from "express";
 import { storage } from "../storage.js";
 import { calculateDeliveryFee } from "../services/deliveryFeeService";
 import { formatCurrency } from "../../shared/utils";
-import { canOrderFromRestaurant } from "../../utils/restaurantHours";
 import { broadcastEvent } from "../broadcast";
 import { randomUUID } from "crypto";
+import { dbStorage } from "../db.js";
+import { systemSettings } from "../../shared/schema.js";
+import { eq, sql as sqlExpr } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -118,22 +120,6 @@ router.post("/", async (req, res) => {
       // إذا فشل التحقق من الإعدادات، نسمح بالطلب
     }
 
-    // التحقق من وجود المطعم (اختياري الآن)
-    let restaurant = null;
-    if (restaurantId) {
-      restaurant = await storage.getRestaurant(restaurantId);
-    }
-    
-    // التحقق من ساعات العمل إذا كان المطعم موجوداً
-    if (restaurant) {
-      const orderStatus = canOrderFromRestaurant(restaurant);
-      if (!orderStatus.canOrder) {
-        return res.status(400).json({ 
-          error: orderStatus.message || "المطعم مغلق حالياً"
-        });
-      }
-    }
-
     // حساب رسوم التوصيل والمسافة
     let finalDeliveryFee = parseFloat(clientDeliveryFee || '0');
     let distance = 0;
@@ -153,8 +139,39 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // إنشاء رقم طلب فريد
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // إنشاء رقم طلب متسلسل من إعدادات المتجر
+    let orderNumber: string;
+    try {
+      const allSettingsForOrder = await storage.getUiSettings();
+      const orderSettingsMap = new Map(allSettingsForOrder.map((s: any) => [s.key, s.value]));
+      const prefix = orderSettingsMap.get('order_number_prefix') || '';
+      const startNum = parseInt(orderSettingsMap.get('order_number_start') || '1', 10);
+
+      // زيادة العداد بشكل ذري في قاعدة البيانات
+      const dbInstance = dbStorage.db;
+      const [counterRow] = await dbInstance
+        .update(systemSettings)
+        .set({ value: sqlExpr`(CAST(${systemSettings.value} AS INTEGER) + 1)::TEXT` })
+        .where(eq(systemSettings.key, 'order_number_counter'))
+        .returning({ value: systemSettings.value });
+
+      if (counterRow) {
+        const counter = Math.max(parseInt(counterRow.value, 10), startNum);
+        orderNumber = `${prefix}${String(counter).padStart(4, '0')}`;
+      } else {
+        // إنشاء العداد إذا لم يكن موجوداً
+        await dbInstance.insert(systemSettings).values({
+          key: 'order_number_counter',
+          value: String(startNum),
+          category: 'orders',
+          description: 'عداد أرقام الطلبات التلقائي',
+        }).onConflictDoNothing();
+        orderNumber = `${prefix}${String(startNum).padStart(4, '0')}`;
+      }
+    } catch (orderNumErr) {
+      console.error("خطأ في توليد رقم الطلب المتسلسل، استخدام الاحتياطي:", orderNumErr);
+      orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
 
     // التأكد من أن العناصر هي JSON string
     let itemsString;
@@ -166,27 +183,15 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // حساب العمولات
+    // حساب العمولات - متجر واحد (طمطوم)، كل الدخل للمؤسسة
     const subtotalNum = parseFloat(subtotal || '0');
     const deliveryFeeNum = finalDeliveryFee;
-    
-    let restaurantCommissionAmount = 0;
-    let restaurantEarnings = 0;
-    
-    if (restaurant) {
-      const restaurantCommissionRate = parseFloat(restaurant.commissionRate?.toString() || '15'); // افتراضي 15%
-      restaurantCommissionAmount = (subtotalNum * restaurantCommissionRate) / 100;
-      restaurantEarnings = subtotalNum - restaurantCommissionAmount;
-    } else {
-      // إذا لم يكن هناك مطعم (متجر رئيسي)، فكل الدخل للمؤسسة
-      restaurantEarnings = 0;
-      restaurantCommissionAmount = subtotalNum;
-    }
+    const companyCommissionAmount = subtotalNum;
     
     // حساب عمولة السائق الأولية (سيتم تحديثها عند التعيين)
     const defaultDriverCommissionRate = 70; // 70% من رسوم التوصيل
     const driverEarnings = (deliveryFeeNum * defaultDriverCommissionRate) / 100;
-    const companyEarnings = restaurantCommissionAmount + (deliveryFeeNum - driverEarnings);
+    const companyEarnings = companyCommissionAmount + (deliveryFeeNum - driverEarnings);
 
     // إنشاء الطلب
     const orderStatus = isScheduledOrder ? 'scheduled' : 'pending';
@@ -209,10 +214,10 @@ router.post("/", async (req, res) => {
       total: String(subtotalNum + deliveryFeeNum),
       totalAmount: String(subtotalNum + deliveryFeeNum),
       driverEarnings: String(driverEarnings),
-      restaurantEarnings: String(restaurantEarnings),
+      restaurantEarnings: '0',
       companyEarnings: String(companyEarnings),
-      restaurantId: restaurantId || null,
-      estimatedTime: restaurant?.deliveryTime || '30-45 دقيقة',
+      restaurantId: null,
+      estimatedTime: '30-45 دقيقة',
       deliveryPreference: deliveryPreference || 'now',
       scheduledDate: scheduledDate || null,
       scheduledTimeSlot: scheduledTimeSlot || null

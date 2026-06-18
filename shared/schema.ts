@@ -48,36 +48,8 @@ export const categories = pgTable("categories", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Restaurants table (Stores)
-export const restaurants = pgTable("restaurants", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 200 }).notNull(),
-  description: text("description"),
-  image: text("image").notNull(),
-  phone: varchar("phone", { length: 20 }),
-  rating: varchar("rating", { length: 10 }).default("0.0"),
-  reviewCount: integer("review_count").default(0),
-  deliveryTime: varchar("delivery_time", { length: 50 }).notNull(),
-  isOpen: boolean("is_open").default(true).notNull(),
-  minimumOrder: decimal("minimum_order", { precision: 10, scale: 2 }).default("0"),
-  deliveryFee: decimal("delivery_fee", { precision: 10, scale: 2 }).default("0"),
-  perKmFee: decimal("per_km_fee", { precision: 10, scale: 2 }).default("0"),
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("0"),
-  categoryId: uuid("category_id").references(() => categories.id),
-  openingTime: varchar("opening_time", { length: 50 }).default("08:00"),
-  closingTime: varchar("closing_time", { length: 50 }).default("23:00"),
-  workingDays: varchar("working_days", { length: 50 }).default("0,1,2,3,4,5,6"),
-  isTemporarilyClosed: boolean("is_temporarily_closed").default(false),
-  temporaryCloseReason: text("temporary_close_reason"),
-  latitude: decimal("latitude", { precision: 10, scale: 8 }),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }),
-  address: text("address"),
-  isFeatured: boolean("is_featured").default(false),
-  isNew: boolean("is_new").default(false),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+// NOTE: restaurants table removed - project uses single Tamtom store
+// Store location is managed via system settings (store_lat, store_lng)
 
 // Menu items table (Products)
 export const menuItems = pgTable("menu_items", {
@@ -99,7 +71,7 @@ export const menuItems = pgTable("menu_items", {
   isSpecialOffer: boolean("is_special_offer").default(false).notNull(),
   isFeatured: boolean("is_featured").default(false),
   isNew: boolean("is_new").default(false),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
+  restaurantId: uuid("restaurant_id"),
 });
 
 // Drivers table - بدون مصادقة
@@ -163,7 +135,7 @@ export const orders = pgTable("orders", {
   restaurantEarnings: decimal("restaurant_earnings", { precision: 10, scale: 2 }).default("0"),
   companyEarnings: decimal("company_earnings", { precision: 10, scale: 2 }).default("0"),
   distance: decimal("distance", { precision: 10, scale: 2 }).default("0"),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
+  restaurantId: uuid("restaurant_id"),
   restaurantName: varchar("restaurant_name", { length: 200 }), // اسم المطعم للسهولة
   restaurantPhone: varchar("restaurant_phone", { length: 20 }), // رقم هاتف المطعم للسهولة
   driverId: uuid("driver_id").references(() => drivers.id),
@@ -193,9 +165,9 @@ export const specialOffers = pgTable("special_offers", {
   discountPercent: integer("discount_percent"),
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
   minimumOrder: decimal("minimum_order", { precision: 10, scale: 2 }).default("0"),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id), // ربط العرض بمطعم محدد
+  restaurantId: uuid("restaurant_id"), // ربط العرض بمطعم محدد
   categoryId: uuid("category_id").references(() => categories.id), // ربط العرض بتصنيف محدد
-  sectionId: uuid("section_id").references(() => restaurantSections.id), // ربط العرض بقسم داخل المتجر
+  sectionId: uuid("section_id"), // ربط العرض بقسم داخل المتجر
   validUntil: timestamp("valid_until"),
   showBadge: boolean("show_badge").default(true), // إظهار أو إخفاء الملصق
   badgeText1: varchar("badge_text_1", { length: 50 }).default("طازج يومياً"), // النص الأول (مثلاً: طازج يومياً)
@@ -235,22 +207,13 @@ export const systemSettingsTable = pgTable("system_settings_table", {
 export const systemSettings = systemSettingsTable;
 export const uiSettings = systemSettingsTable;
 
-// Restaurant sections table
-export const restaurantSections = pgTable("restaurant_sections", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
-  name: varchar("name", { length: 100 }).notNull(),
-  description: text("description"),
-  sortOrder: integer("sort_order").default(0),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// restaurant_sections table removed
 
 // Ratings table
 export const ratings = pgTable("ratings", {
   id: uuid("id").primaryKey().defaultRandom(),
   orderId: uuid("order_id").references(() => orders.id),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
+  restaurantId: uuid("restaurant_id"),
   customerName: varchar("customer_name", { length: 100 }).notNull(),
   customerPhone: varchar("customer_phone", { length: 20 }),
   rating: integer("rating").notNull(),
@@ -304,26 +267,14 @@ export const walletTransactions = pgTable("wallet_transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Restaurant earnings table
-export const restaurantEarnings = pgTable("restaurant_earnings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
-  ownerName: varchar("owner_name", { length: 100 }).notNull(),
-  ownerPhone: varchar("owner_phone", { length: 20 }).notNull(),
-  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00"),
-  pendingAmount: decimal("pending_amount", { precision: 10, scale: 2 }).default("0.00"),
-  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).default("0.00"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+// restaurant_earnings table removed
 
 // Cart table - جدول السلة
 export const cart = pgTable("cart", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id).notNull(),
   menuItemId: uuid("menu_item_id").references(() => menuItems.id).notNull(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id).notNull(),
+  restaurantId: uuid("restaurant_id"),
   quantity: integer("quantity").default(1).notNull(),
   specialInstructions: text("special_instructions"),
   addedAt: timestamp("added_at").defaultNow().notNull(),
@@ -333,7 +284,7 @@ export const cart = pgTable("cart", {
 export const favorites = pgTable("favorites", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
+  restaurantId: uuid("restaurant_id"),
   menuItemId: uuid("menu_item_id").references(() => menuItems.id),
   addedAt: timestamp("added_at").defaultNow().notNull(),
 });
@@ -417,14 +368,7 @@ export const driverWithdrawals = pgTable("driver_withdrawals", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const restaurantWallets = pgTable("restaurant_wallets", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id).notNull().unique(),
-  balance: decimal("balance", { precision: 10, scale: 2 }).default("0"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+
 
 export const commissionSettings = pgTable("commission_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -576,20 +520,7 @@ export const deviceTokens = pgTable("device_tokens", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// ======= بوابة المطعم الشريك =======
-export const restaurantUsers = pgTable("restaurant_users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id).notNull(),
-  name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 100 }).notNull().unique(),
-  phone: varchar("phone", { length: 20 }).notNull(),
-  password: text("password").notNull(),
-  role: varchar("role", { length: 30 }).default("owner").notNull(), // owner, manager, staff
-  isActive: boolean("is_active").default(true).notNull(),
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+
 
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).partial({
@@ -623,28 +554,6 @@ export type Category = z.infer<typeof selectCategorySchema>;
 export type CategoryInsert = z.infer<typeof insertCategorySchema>; // Alias for compatibility
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 
-export const insertRestaurantSchema = createInsertSchema(restaurants).partial({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  isActive: true,
-  isOpen: true,
-  isFeatured: true,
-  isNew: true,
-  isTemporarilyClosed: true,
-  rating: true,
-  reviewCount: true,
-  minimumOrder: true,
-  deliveryFee: true,
-  perKmFee: true,
-  commissionRate: true,
-  openingTime: true,
-  closingTime: true,
-  workingDays: true,
-});
-export const selectRestaurantSchema = createSelectSchema(restaurants);
-export type Restaurant = z.infer<typeof selectRestaurantSchema>;
-export type InsertRestaurant = z.infer<typeof insertRestaurantSchema>;
 
 export const insertMenuItemSchema = createInsertSchema(menuItems).partial({
   id: true,
@@ -746,15 +655,6 @@ export const selectUiSettingsSchema = createSelectSchema(uiSettings);
 export type UiSettings = z.infer<typeof selectUiSettingsSchema>;
 export type InsertUiSettings = z.infer<typeof insertUiSettingsSchema>;
 
-export const insertRestaurantSectionSchema = createInsertSchema(restaurantSections).partial({
-  id: true,
-  createdAt: true,
-  isActive: true,
-  sortOrder: true,
-});
-export const selectRestaurantSectionSchema = createSelectSchema(restaurantSections);
-export type RestaurantSection = z.infer<typeof selectRestaurantSectionSchema>;
-export type InsertRestaurantSection = z.infer<typeof insertRestaurantSectionSchema>;
 
 export const insertRatingSchema = createInsertSchema(ratings).partial({
   id: true,
@@ -803,18 +703,6 @@ export const selectSystemSettingsSchema = createSelectSchema(systemSettingsTable
 export type SystemSettings = z.infer<typeof selectSystemSettingsSchema>;
 export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
 
-export const insertRestaurantEarningsSchema = createInsertSchema(restaurantEarnings).partial({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  isActive: true,
-  totalEarnings: true,
-  pendingAmount: true,
-  paidAmount: true,
-});
-export const selectRestaurantEarningsSchema = createSelectSchema(restaurantEarnings);
-export type RestaurantEarnings = z.infer<typeof selectRestaurantEarningsSchema>;
-export type InsertRestaurantEarnings = z.infer<typeof insertRestaurantEarningsSchema>;
 
 export const insertCartSchema = createInsertSchema(cart).partial({
   id: true,
@@ -907,16 +795,6 @@ export const selectDriverWithdrawalSchema = createSelectSchema(driverWithdrawals
 export type DriverWithdrawal = z.infer<typeof selectDriverWithdrawalSchema>;
 export type InsertDriverWithdrawal = z.infer<typeof insertDriverWithdrawalSchema>;
 
-export const insertRestaurantWalletSchema = createInsertSchema(restaurantWallets).partial({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  isActive: true,
-  balance: true,
-});
-export const selectRestaurantWalletSchema = createSelectSchema(restaurantWallets);
-export type RestaurantWallet = z.infer<typeof selectRestaurantWalletSchema>;
-export type InsertRestaurantWallet = z.infer<typeof insertRestaurantWalletSchema>;
 
 export const insertCommissionSettingsSchema = createInsertSchema(commissionSettings).partial({
   id: true,
@@ -995,7 +873,7 @@ export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
 // Delivery fee settings table
 export const deliveryFeeSettings = pgTable("delivery_fee_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id), // null for global settings
+  restaurantId: uuid("restaurant_id"), // null for global settings
   type: varchar("type", { length: 50 }).default("per_km").notNull(), // fixed, per_km, zone_based, restaurant_custom
   baseFee: decimal("base_fee", { precision: 10, scale: 2 }).default("0"),
   perKmFee: decimal("per_km_fee", { precision: 10, scale: 2 }).default("0"),
@@ -1288,7 +1166,7 @@ export const coupons = pgTable("coupons", {
   usageCount: integer("usage_count").default(0).notNull(),
   perUserLimit: integer("per_user_limit").default(1),
   applicableFor: varchar("applicable_for", { length: 50 }).default("all"), // all, new_users, specific_restaurant
-  restaurantId: uuid("restaurant_id").references(() => restaurants.id),
+  restaurantId: uuid("restaurant_id"),
   categoryId: uuid("category_id").references(() => categories.id),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),

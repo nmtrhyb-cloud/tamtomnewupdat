@@ -170,13 +170,12 @@ export async function calculateDeliveryFee(
   restaurantId: string | null,
   orderSubtotal: number
 ): Promise<DeliveryFeeResult> {
-  // جلب جميع البيانات بشكل متوازٍ
-  const [geoZones, deliveryRules, discounts, deliverySettings, restaurant, systemStoreLocation] = await Promise.all([
+  // جلب جميع البيانات بشكل متوازٍ - موقع المتجر دائماً من إعدادات النظام
+  const [geoZones, deliveryRules, discounts, deliverySettings, systemStoreLocation] = await Promise.all([
     storage.getGeoZones(),
     storage.getDeliveryRules(),
     storage.getDeliveryDiscounts(),
     getDeliveryFeeSettings(),
-    restaurantId ? storage.getRestaurant(restaurantId) : Promise.resolve(null),
     getSystemStoreLocation(),
   ]);
 
@@ -184,23 +183,8 @@ export async function calculateDeliveryFee(
   const activeRules = deliveryRules.filter(r => r.isActive);
   const activeDiscounts = discounts.filter(d => d.isActive);
 
-  // تحديد موقع المتجر بالأولوية:
-  // 1. موقع المطعم المحدد في قاعدة البيانات
-  // 2. موقع المتجر الرئيسي من إعدادات النظام (store_lat/store_lng)
-  // 3. إذا لم يوجد شيء → مسافة = 0
-  let storeLocation: DeliveryLocation | null = null;
-
-  if (restaurant && restaurant.latitude && restaurant.longitude) {
-    const lat = parseFloat(restaurant.latitude as string);
-    const lng = parseFloat(restaurant.longitude as string);
-    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
-      storeLocation = { lat, lng };
-    }
-  }
-
-  if (!storeLocation && systemStoreLocation) {
-    storeLocation = systemStoreLocation;
-  }
+  // موقع المتجر الرئيسي (طمطوم) من إعدادات النظام (store_lat/store_lng)
+  const storeLocation: DeliveryLocation | null = systemStoreLocation;
 
   // حساب المسافة
   const distance = storeLocation

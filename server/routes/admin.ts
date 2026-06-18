@@ -5,7 +5,6 @@ import { broadcastSettingsChanged, broadcastEvent } from "../broadcast";
 import { z } from "zod";
 import { eq, and, desc, sql, or, like, asc, inArray } from "drizzle-orm";
 import {
-  insertRestaurantSchema,
   insertCategorySchema,
   insertSpecialOfferSchema,
   insertAdminUserSchema,
@@ -21,8 +20,6 @@ import {
   adminUsers,
   // تم حذف adminSessions
   categories,
-  restaurantSections,
-  restaurants,
   menuItems,
   users,
   customers,
@@ -58,8 +55,6 @@ const schema = {
   adminUsers,
   // تم حذف adminSessions من schema object
   categories,
-  restaurantSections,
-  restaurants,
   menuItems,
   users,
   customers,
@@ -129,18 +124,18 @@ function requirePermission(permission: string) {
 router.get("/dashboard", async (req, res) => {
   try {
     // جلب البيانات من قاعدة البيانات
-    const [restaurants, orders, drivers, users] = await Promise.all([
-      storage.getRestaurants(),
+    const [orders, drivers, users] = await Promise.all([
+      // restaurants removed
       storage.getOrders(),
       storage.getDrivers(),
       storage.getUsers ? storage.getUsers() : []
     ]);
+    const totalRestaurants = 1; // Tamtom single store
 
     const today = new Date().toDateString();
     
     // حساب الإحصائيات باستخدام عمليات المصفوفات
-    const totalRestaurants = restaurants.length;
-    const totalOrders = orders.length;
+        const totalOrders = orders.length;
     const totalDrivers = drivers.length;
     const totalCustomers = users.length; // أو 0 إذا لم تكن متوفرة
     
@@ -293,164 +288,6 @@ router.delete("/categories/:id", async (req, res) => {
   }
 });
 
-// إدارة المطاعم
-router.get("/restaurants", async (req, res) => {
-  try {
-    const { page = 1, limit = 10, search, categoryId } = req.query;
-    
-    // جلب المطاعم باستخدام المرشحات
-    const filters: any = {};
-    if (categoryId) {
-      filters.categoryId = categoryId as string;
-    }
-    if (search) {
-      filters.search = search as string;
-    }
-    
-    const allRestaurants = await storage.getRestaurants(filters);
-    
-    // ترتيب المطاعم حسب تاريخ الإنشاء (الأحدث أولاً)
-    const sortedRestaurants = allRestaurants.sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
-    
-    // تطبيق التصفح (pagination)
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const endIndex = startIndex + Number(limit);
-    const paginatedRestaurants = sortedRestaurants.slice(startIndex, endIndex);
-
-    res.json({
-      restaurants: paginatedRestaurants,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total: sortedRestaurants.length,
-        pages: Math.ceil(sortedRestaurants.length / Number(limit))
-      }
-    });
-  } catch (error) {
-    console.error("خطأ في جلب المطاعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.post("/restaurants", async (req, res) => {
-  try {
-    console.log("Restaurant creation request data:", req.body);
-    
-    // تنظيف وتحويل البيانات باستخدام helper function
-    const coercedData = coerceRequestData(req.body);
-    
-    // تقديم قيم افتراضية للحقول المطلوبة
-    const restaurantData = {
-      // الحقول المطلوبة
-      name: coercedData.name || "مطعم جديد",
-      description: coercedData.description || "وصف المطعم",
-      image: coercedData.image || "https://images.pexels.com/photos/262978/pexels-photo-262978.jpeg",
-      deliveryTime: coercedData.deliveryTime || "30-45 دقيقة",
-      
-      // الحقول الاختيارية مع قيم افتراضية
-      rating: coercedData.rating || "0.0",
-      reviewCount: coercedData.reviewCount || 0,
-      minimumOrder: coercedData.minimumOrder || "0",
-      deliveryFee: coercedData.deliveryFee || "0",
-      perKmFee: coercedData.perKmFee || "0",
-      commissionRate: coercedData.commissionRate || "10",
-      categoryId: coercedData.categoryId,
-      
-      // أوقات العمل
-      openingTime: coercedData.openingTime || "08:00",
-      closingTime: coercedData.closingTime || "23:00",
-      workingDays: coercedData.workingDays || "0,1,2,3,4,5,6",
-      
-      // حالات المطعم (الآن مع تحويل صحيح للبوليان)
-      isOpen: coercedData.isOpen !== undefined ? coercedData.isOpen : true,
-      isActive: coercedData.isActive !== undefined ? coercedData.isActive : true,
-      isFeatured: coercedData.isFeatured !== undefined ? coercedData.isFeatured : false,
-      isNew: coercedData.isNew !== undefined ? coercedData.isNew : false,
-      isTemporarilyClosed: coercedData.isTemporarilyClosed !== undefined ? coercedData.isTemporarilyClosed : false,
-      temporaryCloseReason: coercedData.temporaryCloseReason,
-      
-      // الموقع (الآن مع تحويل صحيح للأرقام العشرية)
-      latitude: coercedData.latitude,
-      longitude: coercedData.longitude,
-      address: coercedData.address,
-      
-      // حقول التوقيت (سيتم إضافتها تلقائياً بواسطة قاعدة البيانات)
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    console.log("Processed restaurant data:", restaurantData);
-    
-    const validatedData = insertRestaurantSchema.parse(restaurantData);
-    
-    const newRestaurant = await storage.createRestaurant(validatedData);
-    broadcastSettingsChanged('restaurants');
-    res.status(201).json(newRestaurant);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error("Restaurant validation errors:", error.errors);
-      return res.status(400).json({ 
-        error: "بيانات المطعم غير صحيحة", 
-        details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
-      });
-    }
-    console.error("خطأ في إضافة المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.put("/restaurants/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // تطبيق coercion على البيانات المحدثة أيضاً
-    const coercedData = coerceRequestData(req.body);
-    
-    // التحقق من صحة البيانات المحدثة (جزئي)
-    const validatedData = insertRestaurantSchema.partial().parse(coercedData);
-    
-    const updatedRestaurant = await storage.updateRestaurant(id, {
-      ...validatedData, 
-      updatedAt: new Date()
-    });
-    
-    if (!updatedRestaurant) {
-      return res.status(404).json({ error: "المطعم غير موجود" });
-    }
-    
-    broadcastSettingsChanged('restaurants');
-    res.json(updatedRestaurant);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        error: "بيانات تحديث المطعم غير صحيحة", 
-        details: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
-      });
-    }
-    console.error("خطأ في تحديث المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.delete("/restaurants/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const success = await storage.deleteRestaurant(id);
-    
-    if (!success) {
-      return res.status(404).json({ error: "المطعم غير موجود" });
-    }
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error("خطأ في حذف المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
 // إدارة عناصر القائمة
 router.get("/menu-items", async (req, res) => {
   try {
@@ -462,47 +299,13 @@ router.get("/menu-items", async (req, res) => {
   }
 });
 
-// ── Restaurant Sections CRUD ───────────────────────────────────────────────
-router.get("/restaurants/:restaurantId/sections", async (req, res) => {
-  try {
-    const { restaurantId } = req.params;
-    const sections = await storage.getRestaurantSections(restaurantId);
-    res.json(sections);
-  } catch (error) {
-    console.error("خطأ في جلب أقسام المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.post("/restaurant-sections", async (req, res) => {
-  try {
-    const section = await storage.createRestaurantSection(req.body);
-    res.status(201).json(section);
-  } catch (error) {
-    console.error("خطأ في إضافة قسم المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.put("/restaurant-sections/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const section = await storage.updateRestaurantSection(id, req.body);
-    if (!section) return res.status(404).json({ error: "القسم غير موجود" });
-    res.json(section);
-  } catch (error) {
-    console.error("خطأ في تحديث قسم المطعم:", error);
-    res.status(500).json({ error: "خطأ في الخادم" });
-  }
-});
-
-router.delete("/restaurant-sections/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const success = await storage.deleteRestaurantSection(id);
-    if (!success) return res.status(404).json({ error: "القسم غير موجود" });
-    res.json({ success: true });
-  } catch (error) {
+router.delete("/restaurant-sections-disabled/:id", async (req, res) => {
+  res.status(410).json({ error: "Restaurant sections removed" });
+  return;
+  // disabled - kept only to avoid reference errors
+  const { id } = req.params;
+  void id;
+  try { } catch (error) {
     console.error("خطأ في حذف قسم المطعم:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
@@ -736,42 +539,10 @@ router.put("/orders/:id/status", async (req: any, res) => {
   }
 });
 
-// جلب إحصائيات تقارير المطاعم
-router.get("/reports/restaurants", async (req, res) => {
+// جلب إحصائيات تقارير المطاعم (متجر واحد - لا مطاعم)
+router.get("/reports/restaurants", async (_req, res) => {
   try {
-    const { startDate, endDate, categoryId } = req.query;
-    
-    const allRestaurants = await storage.getRestaurants({ categoryId: categoryId as string });
-    const allOrders = await storage.getOrders();
-    
-    const reports = allRestaurants.map(restaurant => {
-      const restaurantOrders = allOrders.filter(order => 
-        order.restaurantId === restaurant.id &&
-        (order.status === 'delivered') &&
-        (!startDate || new Date(order.createdAt) >= new Date(startDate as string)) &&
-        (!endDate || new Date(order.createdAt) <= new Date(endDate as string))
-      );
-      
-      const totalSales = restaurantOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || order.total || "0"), 0);
-      const totalOrders = restaurantOrders.length;
-      const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-      const commissionRate = 0.15; // 15% عمولة افتراضية
-      const totalCommission = totalSales * commissionRate;
-      const amountDue = totalSales - totalCommission;
-      
-      return {
-        id: restaurant.id,
-        name: restaurant.name,
-        category: restaurant.categoryId,
-        totalOrders,
-        totalSales,
-        avgOrderValue,
-        commissionRate: commissionRate * 100,
-        amountDue
-      };
-    });
-    
-    res.json(reports);
+    res.json([]);
   } catch (error) {
     console.error("Error in restaurant reports:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -931,44 +702,20 @@ router.get("/drivers-summary", async (req, res) => {
   }
 });
 
-// ملخص المطاعم للتقارير المتقدمة
-router.get("/restaurants-summary", async (req, res) => {
+// ملخص المطاعم للتقارير المتقدمة (متجر واحد - لا مطاعم)
+router.get("/restaurants-summary", async (_req, res) => {
   try {
-    const allRestaurants = await storage.getRestaurants({});
-    const allOrders = await storage.getOrders();
-
-    const summary = allRestaurants.map(restaurant => {
-      const restaurantOrders = allOrders.filter(o => o.restaurantId === restaurant.id && o.status === 'delivered');
-      const totalRevenue = restaurantOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || o.total || "0"), 0);
-      const commissionRate = 0.15;
-      const totalCommission = totalRevenue * commissionRate;
-
-      return {
-        id: restaurant.id,
-        name: restaurant.name,
-        phone: restaurant.phone,
-        isOpen: restaurant.isOpen,
-        stats: {
-          totalOrders: restaurantOrders.length,
-          totalRevenue,
-          totalCommission,
-          netEarnings: totalRevenue - totalCommission,
-          avgOrderValue: restaurantOrders.length > 0 ? totalRevenue / restaurantOrders.length : 0
-        }
-      };
-    });
-
-    res.json(summary);
+    res.json([]);
   } catch (error) {
     console.error("خطأ في ملخص المطاعم:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });
 
-router.get("/reports/restaurants/:id", async (req, res) => {
+router.get("/reports/restaurants/:id", async (_req, res) => {
   try {
-    const { id } = req.params;
-    const restaurant = await storage.getRestaurant(id);
+    return res.status(404).json({ error: "Not found - single store mode" });
+    const restaurant = null;
     if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
     
     const allOrders = await storage.getOrders();
@@ -1186,7 +933,6 @@ router.get("/stats", async (req, res) => {
     const orders = await storage.getOrders();
     const drivers = await storage.getDrivers();
     const categories = await storage.getCategories();
-    const restaurants = await storage.getRestaurants();
     const users = await storage.getUsers();
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -1199,7 +945,7 @@ router.get("/stats", async (req, res) => {
       totalDrivers: drivers.length,
       activeDrivers: drivers.filter((d: any) => d.isAvailable).length,
       totalCategories: categories.length,
-      totalRestaurants: restaurants.length,
+      totalRestaurants: 1,
       totalUsers: users.length,
       totalRevenue: totalRevenue.toFixed(2),
     });

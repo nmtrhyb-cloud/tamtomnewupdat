@@ -1,12 +1,11 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { 
-  driverReviews, driverEarningsTable , driverBalances, restaurantWallets,
+  driverReviews, driverEarningsTable , driverBalances,
   commissionSettings, withdrawalRequests, driverWorkSessions,
   drivers, orders, users,
   type DriverReview, type InsertDriverReview,
   type DriverEarnings, type InsertDriverEarnings,
   type DriverBalance, type InsertDriverBalance,
-  type RestaurantWallet, type InsertRestaurantWallet,
   type CommissionSettings, type InsertCommissionSettings,
   type WithdrawalRequest, type InsertWithdrawalRequest,
   type DriverWorkSession, type InsertDriverWorkSession
@@ -138,46 +137,12 @@ export class AdvancedDatabaseStorage {
     });
   }
 
-  // Restaurant Wallets
-  async createRestaurantWallet(wallet: InsertRestaurantWallet): Promise<RestaurantWallet> {
-    const result = await this.db.insert(restaurantWallets).values(wallet).returning();
-    return result[0];
-  }
-
-  async getRestaurantWallet(restaurantId: string): Promise<RestaurantWallet | null> {
-    const result = await this.db.select().from(restaurantWallets)
-      .where(eq(restaurantWallets.restaurantId, restaurantId));
-    return result[0] || null;
-  }
-
-  async updateRestaurantWallet(restaurantId: string, updates: Partial<InsertRestaurantWallet>): Promise<RestaurantWallet> {
-    const result = await this.db.update(restaurantWallets)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(restaurantWallets.restaurantId, restaurantId))
-      .returning();
-    return result[0];
-  }
-
-  async addRestaurantWalletBalance(restaurantId: string, amount: number): Promise<RestaurantWallet> {
-    const wallet = await this.getRestaurantWallet(restaurantId);
-    if (!wallet) throw new Error("Wallet not found");
-    
-    const currentBalance = parseFloat(wallet.balance?.toString() || "0");
-    const newBalance = currentBalance + amount;
-    
-    return await this.updateRestaurantWallet(restaurantId, { balance: newBalance.toString() });
-  }
-
-  async deductRestaurantWalletBalance(restaurantId: string, amount: number): Promise<RestaurantWallet> {
-    const wallet = await this.getRestaurantWallet(restaurantId);
-    if (!wallet) throw new Error("Wallet not found");
-    
-    const currentBalance = parseFloat(wallet.balance?.toString() || "0");
-    if (currentBalance < amount) throw new Error("Insufficient balance");
-    
-    const newBalance = currentBalance - amount;
-    return await this.updateRestaurantWallet(restaurantId, { balance: newBalance.toString() });
-  }
+  // Restaurant Wallets - removed (single-store Tamtom project)
+  async createRestaurantWallet(wallet: any): Promise<any> { return {}; }
+  async getRestaurantWallet(restaurantId: string): Promise<any | null> { return null; }
+  async updateRestaurantWallet(restaurantId: string, updates: any): Promise<any> { return {}; }
+  async addRestaurantWalletBalance(restaurantId: string, amount: number): Promise<any> { return {}; }
+  async deductRestaurantWalletBalance(restaurantId: string, amount: number): Promise<any> { return {}; }
 
   // Commission Settings
   async createCommissionSetting(setting: InsertCommissionSettings): Promise<CommissionSettings> {

@@ -16,7 +16,6 @@ import deliveryFeeRoutes from "./routes/delivery-fees";
 import { adminRoutes } from "./routes/admin";
 import { registerAdvancedRoutes } from "./routes/advanced";
 import { publicRoutes } from "./routes/public";
-import restaurantAccountsRouter from "./routes/restaurant-accounts";
 import flutterRouter from "./routes/flutter";
 import wasalniRouter from "./routes/wasalni";
 import imageUploadRouter from "./imageUpload";
@@ -24,20 +23,17 @@ import { ensureUploadsDir, UPLOADS_DIR } from "./localStorage";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { 
-  insertRestaurantSchema, 
   insertMenuItemSchema, 
   insertOrderSchema, 
   insertDriverSchema, 
   insertCategorySchema, 
   insertSpecialOfferSchema,
   insertUiSettingsSchema,
-  insertRestaurantSectionSchema,
   insertRatingSchema,
   insertNotificationSchema,
   insertWalletSchema,
   insertWalletTransactionSchema,
   insertSystemSettingsSchema,
-  insertRestaurantEarningsSchema,
   insertUserSchema,
   insertCartSchema,
   insertFavoritesSchema,
@@ -139,52 +135,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Category write operations are only available through /api/admin/categories
 
-  // Enhanced Restaurants with filtering - مطاعم محسنة مع التصفية
-  app.get("/api/restaurants", async (req, res) => {
-    try {
-      const { 
-        categoryId, 
-        lat, 
-        lon, 
-        sortBy, 
-        isFeatured, 
-        isNew, 
-        search, 
-        radius, 
-        isOpen 
-      } = req.query;
-      
-      const filters = {
-        categoryId: categoryId as string,
-        userLatitude: lat ? parseFloat(lat as string) : undefined,
-        userLongitude: lon ? parseFloat(lon as string) : undefined,
-        sortBy: sortBy as 'name' | 'rating' | 'deliveryTime' | 'distance' | 'newest',
-        isFeatured: isFeatured === 'true',
-        isNew: isNew === 'true',
-        search: search as string,
-        radius: radius ? parseFloat(radius as string) : undefined,
-        isOpen: isOpen !== undefined ? isOpen === 'true' : undefined
-      };
-      
-      const restaurants = await storage.getRestaurants(filters);
-      res.json(restaurants);
-    } catch (error) {
-      console.error('Error fetching restaurants:', error);
-      res.status(500).json({ message: "Failed to fetch restaurants" });
-    }
+  // Restaurants stub - single-store Tamtom
+  app.get("/api/restaurants", async (_req, res) => {
+    res.json([]);
   });
 
-  app.get("/api/restaurants/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const restaurant = await storage.getRestaurant(id);
-      if (!restaurant) {
-        return res.status(404).json({ message: "Restaurant not found" });
-      }
-      res.json(restaurant);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch restaurant" });
-    }
+  app.get("/api/restaurants/:id", async (_req, res) => {
+    res.json(null);
   });
 
   // Restaurant write operations are only available through /api/admin/restaurants
@@ -222,10 +179,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/restaurants/:restaurantId/menu", async (req, res) => {
+  app.get("/api/restaurants/:restaurantId/menu", async (_req, res) => {
     try {
-      const { restaurantId } = req.params;
-      const allItems = await storage.getMenuItems(restaurantId);
+      const allItems = await storage.getAllMenuItems();
       res.json({ allItems });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch menu items" });
@@ -267,14 +223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Special offer write operations are only available through /api/admin/special-offers
 
   // Favorites Routes
-  app.get("/api/favorites/restaurants/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const favorites = await storage.getFavoriteRestaurants(userId);
-      res.json(favorites);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch favorite restaurants" });
-    }
+  app.get("/api/favorites/restaurants/:userId", async (_req, res) => {
+    res.json([]);
   });
 
   app.get("/api/favorites/products/:userId", async (req, res) => {
@@ -346,13 +296,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [
         uiSettings,
         categories,
-        restaurants,
         specialOffers,
         paymentMethodsRaw,
       ] = await Promise.all([
         storage.getUiSettings().catch(() => []),
         storage.getCategories().catch(() => []),
-        storage.getRestaurants({}).catch(() => []),
         storage.getActiveSpecialOffers().catch(() => []),
         (storage as any).getActivePaymentMethods?.().catch(() => []) ?? Promise.resolve([]),
       ]);
@@ -410,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         uiSettings,
         categories,
-        restaurants,
+        restaurants: [],
         specialOffers,
         paymentMethods,
         customer: customerData,
@@ -729,14 +677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Available orders for drivers are handled in routes/orders.ts
 
   // ================= RESTAURANT SECTIONS API =================
-  app.get("/api/restaurants/:restaurantId/sections", async (req, res) => {
-    try {
-      const { restaurantId } = req.params;
-      const sections = await storage.getRestaurantSections(restaurantId);
-      res.json(sections);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sections" });
-    }
+  app.get("/api/restaurants/:restaurantId/sections", async (_req, res) => {
+    res.json([]);
   });
 
   // ================= RATINGS & REVIEWS API - DISABLED =================
@@ -842,17 +784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results: any = {};
       
       if (!type || type === 'restaurants') {
-        const filters = {
-          search: query as string,
-          categoryId: category as string,
-          sortBy: sortBy as 'name' | 'rating' | 'deliveryTime' | 'distance' | 'newest',
-          isFeatured: isFeatured === 'true',
-          isNew: isNew === 'true',
-          userLatitude: userLocation?.lat,
-          userLongitude: userLocation?.lon,
-          radius: radius ? parseFloat(radius as string) : undefined
-        };
-        results.restaurants = await storage.getRestaurants(filters);
+        results.restaurants = [];
       }
       
       if (!type || type === 'categories') {
@@ -1016,9 +948,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register delivery fee routes
   app.use("/api/delivery-fees", deliveryFeeRoutes);
-
-  // Register restaurant accounts routes
-  app.use("/api/restaurant-accounts", restaurantAccountsRouter);
 
   // Register Flutter API routes
   app.use("/api/flutter", flutterRouter);
