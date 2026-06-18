@@ -727,8 +727,12 @@ export default function AdminUiSettings() {
                 </div>
               )}
 
-              <SettingRow label="وقت الفتح" {...rowProps('opening_time')} placeholder="08:00" description="وقت فتح المتجر يومياً في وضع التلقائي (مثال: 08:00)" />
-              <SettingRow label="وقت الإغلاق" {...rowProps('closing_time')} placeholder="23:00" description="وقت إغلاق المتجر يومياً في وضع التلقائي (مثال: 23:00)" />
+              <SettingRow label="وقت الفتح" {...rowProps('opening_time')} placeholder="08:00"
+                description={`وقت فتح المتجر يومياً في وضع التلقائي (مثال: 08:00)${getValue('opening_time') ? ' — ' + (() => { const [h,m] = (getValue('opening_time')||'08:00').split(':').map(Number); const h12 = h===0?12:h>12?h-12:h; return `${h12}:${String(m).padStart(2,'0')} ${h<12?'صباحاً':'مساءً'}`; })() : ''}`}
+              />
+              <SettingRow label="وقت الإغلاق" {...rowProps('closing_time')} placeholder="23:00"
+                description={`وقت إغلاق المتجر يومياً في وضع التلقائي (مثال: 23:00)${getValue('closing_time') ? ' — ' + (() => { const [h,m] = (getValue('closing_time')||'23:00').split(':').map(Number); const h12 = h===0?12:h>12?h-12:h; return `${h12}:${String(m).padStart(2,'0')} ${h<12?'صباحاً':'مساءً'}`; })() : ''}`}
+              />
 
               {/* السماح بالطلبات المجدولة عند الإغلاق */}
               <div className="flex items-start gap-4 py-3 border-t border-gray-100 mt-1">

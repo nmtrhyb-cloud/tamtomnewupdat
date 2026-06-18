@@ -19,6 +19,7 @@ import AdminPaymentMethods from "./admin/AdminPaymentMethods";
 import AdminFlutterNotifications from "./admin/AdminFlutterNotifications";
 import AdminWasalniRequests from "./admin/AdminWasalniRequests";
 import AdminBusinessHours from "./AdminBusinessHours";
+import AdminActivityLogs from "./AdminActivityLogs";
 import AdminSpecialOffers from "./AdminSpecialOffers";
 import AdminSettings from "./AdminSettings";
 import RatingsManagement from "./RatingsManagement";
@@ -60,6 +61,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
         <Route path="/admin/business-hours" component={AdminBusinessHours} />
         <Route path="/admin/notifications" component={AdminFlutterNotifications} />
         <Route path="/admin/wasalni" component={AdminWasalniRequests} />
+        <Route path="/admin/activity-logs" component={AdminActivityLogs} />
         <Route component={NotFound} />
       </Switch>
       </AdminErrorBoundary>

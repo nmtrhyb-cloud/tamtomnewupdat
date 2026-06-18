@@ -147,6 +147,11 @@ const AdminUsers = () => {
     setNavSettings(settings);
   }, []);
 
+  const { data: myProfile } = useQuery<{ userType: string }>({
+    queryKey: ['/api/admin/profile'],
+  });
+  const isSubAdmin = myProfile?.userType === 'sub_admin';
+
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
@@ -425,7 +430,7 @@ const AdminUsers = () => {
       <div className="p-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col lg:flex-row gap-4 mb-6">
-          <TabsList className="grid w-full lg:w-auto grid-cols-5">
+          <TabsList className={`grid w-full lg:w-auto ${isSubAdmin ? 'grid-cols-4' : 'grid-cols-5'}`}>
             <TabsTrigger value="all" data-testid="tab-all-users">الكل ({users.length})</TabsTrigger>
             <TabsTrigger value="customer" data-testid="tab-customers">
               العملاء ({users.filter((u: User) => u.role === 'customer').length})
@@ -436,10 +441,12 @@ const AdminUsers = () => {
             <TabsTrigger value="admin" data-testid="tab-admins">
               المديرين ({users.filter((u: User) => u.role === 'admin').length})
             </TabsTrigger>
-            <TabsTrigger value="sub_admin" data-testid="tab-sub-admins">
-              <Shield className="h-3 w-3 ml-1" />
-              مسؤولون فرعيون ({subAdmins.length})
-            </TabsTrigger>
+            {!isSubAdmin && (
+              <TabsTrigger value="sub_admin" data-testid="tab-sub-admins">
+                <Shield className="h-3 w-3 ml-1" />
+                مسؤولون فرعيون ({subAdmins.length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {activeTab !== 'sub_admin' && (
@@ -455,7 +462,7 @@ const AdminUsers = () => {
             </div>
           )}
 
-          {activeTab === 'sub_admin' && (
+          {activeTab === 'sub_admin' && !isSubAdmin && (
             <Button onClick={openCreateSubAdmin} className="gap-2 bg-purple-600 hover:bg-purple-700">
               <Plus className="h-4 w-4" />
               إضافة مسؤول فرعي

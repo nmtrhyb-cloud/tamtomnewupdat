@@ -264,9 +264,27 @@ export default function CustomerAuthPage() {
       });
       const result = await res.json();
       if (result.success) {
-        setOtpStep('otp');
-        setTestOtp(result.testOtp || null);
-        toast({ title: 'تم إرسال رمز التحقق', description: result.message });
+        if (result.skipOtp) {
+          // التحقق معطّل — إكمال التسجيل مباشرة
+          const normalizedPhone = normalizeSaudiPhone(phone) || phone;
+          const regResult = await register({
+            name: regName,
+            phone: normalizedPhone,
+            password: regPassword,
+            username: normalizedPhone,
+            otp: '',
+          } as any);
+          if (regResult.success) {
+            toast({ title: 'تم إنشاء الحساب', description: 'مرحباً بك، تم إنشاء حسابك بنجاح' });
+            setLocation('/');
+          } else {
+            setError(regResult.message);
+          }
+        } else {
+          setOtpStep('otp');
+          setTestOtp(result.testOtp || null);
+          toast({ title: 'تم إرسال رمز التحقق', description: result.message });
+        }
       } else {
         setError(result.message || 'فشل إرسال الرمز');
       }

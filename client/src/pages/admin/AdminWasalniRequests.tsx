@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search, UserCheck, Plus, Navigation, Loader2 } from 'lucide-react';
+import { Bike, MapPin, Clock, Phone, User, Eye, CheckCircle, XCircle, Truck, Search, UserCheck, Plus, Navigation, Loader2, Printer } from 'lucide-react';
+import { printOrderInvoice } from '@/utils/orderInvoicePDF';
 import {
   Dialog,
   DialogContent,
@@ -311,13 +312,42 @@ export default function AdminWasalniRequests() {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => openDetail(request)}
-                    className="w-full h-10 bg-gray-900 text-white hover:bg-primary rounded-2xl transition-all font-bold text-xs gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    عرض التفاصيل ومعالجة الطلب
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => openDetail(request)}
+                      className="flex-1 h-10 bg-gray-900 text-white hover:bg-primary rounded-2xl transition-all font-bold text-xs gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      عرض التفاصيل
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 rounded-2xl border-red-200 text-red-500 hover:bg-red-50 p-0 shrink-0"
+                      title="طباعة إيصال"
+                      onClick={() => printOrderInvoice({
+                        orderNumber: request.requestNumber || request.id?.slice(0, 8)?.toUpperCase() || '—',
+                        invoiceNumber: `WAS-${request.requestNumber || request.id?.slice(0, 8)?.toUpperCase()}`,
+                        date: request.createdAt || new Date().toISOString(),
+                        customerName: request.customerName,
+                        customerPhone: request.customerPhone,
+                        customerAddress: request.toAddress,
+                        driverName: request.driverName || '',
+                        items: [{
+                          name: `توصيل من: ${request.fromAddress}`,
+                          quantity: 1,
+                          price: parseFloat(request.estimatedFee || '0'),
+                          total: parseFloat(request.estimatedFee || '0'),
+                        }],
+                        subtotal: parseFloat(request.estimatedFee || '0'),
+                        total: parseFloat(request.estimatedFee || '0'),
+                        paymentMethod: request.paymentMethod || '',
+                        type: 'wasalni',
+                      })}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

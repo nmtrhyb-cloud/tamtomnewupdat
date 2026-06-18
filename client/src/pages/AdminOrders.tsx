@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Package, CheckCircle, XCircle, Phone, MapPin, Filter, Navigation, Search, Truck, AlertCircle, Clock, User, Edit, DollarSign, Plus, Minus, Trash2 } from 'lucide-react';
+import { Package, CheckCircle, XCircle, Phone, MapPin, Filter, Navigation, Search, Truck, AlertCircle, Clock, User, Edit, DollarSign, Plus, Minus, Trash2, Printer } from 'lucide-react';
+import { printOrderInvoice, buildOrderInvoiceData } from '@/utils/orderInvoicePDF';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -523,6 +524,17 @@ export default function AdminOrders() {
                           <div className="flex justify-between items-center font-semibold">
                             <span className="text-foreground">المجموع الكلي:</span>
                             <span className="text-primary text-lg">{formatCurrency(order.totalAmount)}</span>
+                          </div>
+                          <div className="mt-3 pt-2 border-t border-dashed border-border">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => printOrderInvoice(buildOrderInvoiceData({ ...order, items, totalAmount: order.totalAmount }))}
+                              className="w-full gap-2 text-red-600 border-red-300 hover:bg-red-50"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              طباعة فاتورة الطلب
+                            </Button>
                           </div>
                         </div>
                       </div>

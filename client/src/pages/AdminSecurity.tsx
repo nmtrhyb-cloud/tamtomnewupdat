@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Shield, UserCheck, Eye, EyeOff, 
   RefreshCw, Users, Globe, Smartphone,
   Mail, Phone, MapPin, Calendar, Clock,
-  Lock, Unlock, Bell, MessageSquare, AlertCircle
+  Lock, Unlock, Bell, MessageSquare, AlertCircle, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -40,7 +40,7 @@ interface SecurityLog {
 
 export default function AdminSecurity() {
   const { toast } = useToast();
-  const [showIps, setShowIps] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: securitySettings } = useQuery<SecuritySettings>({
     queryKey: ['/api/admin/security/settings'],
@@ -49,6 +49,33 @@ export default function AdminSecurity() {
   const { data: securityLogs } = useQuery<SecurityLog[]>({
     queryKey: ['/api/admin/security/logs'],
   });
+
+  const { data: uiSettings = [] } = useQuery<any[]>({
+    queryKey: ['/api/ui-settings'],
+  });
+
+  const getSetting = (key: string, def = '') =>
+    uiSettings?.find((s: any) => s.key === key)?.value ?? def;
+
+  const requirePhoneOtp = getSetting('require_phone_otp', 'true') !== 'false';
+
+  const updateSettingMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      const res = await apiRequest('PUT', `/api/admin/ui-settings/${key}`, { value });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/ui-settings'] });
+      toast({ title: 'تم الحفظ', description: 'تم تحديث إعداد الأمان بنجاح' });
+    },
+    onError: () => {
+      toast({ title: 'خطأ', description: 'فشل في حفظ الإعداد', variant: 'destructive' });
+    },
+  });
+
+  const togglePhoneOtp = (checked: boolean) => {
+    updateSettingMutation.mutate({ key: 'require_phone_otp', value: checked ? 'true' : 'false' });
+  };
 
   return (
     <div className="p-6 space-y-6 bg-gray-50/50 min-h-screen rtl">
@@ -62,6 +89,52 @@ export default function AdminSecurity() {
           تحديث إعدادات الأمان
         </Button>
       </div>
+
+      {/* إعداد التحقق من رقم الهاتف */}
+      <Card className="border-blue-100">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-800">
+            <Phone className="w-5 h-5 text-blue-600" />
+            التحقق من رقم الهاتف عند التسجيل
+          </CardTitle>
+          <CardDescription>
+            عند التفعيل يرسل الخادم رمز SMS إلى رقم العميل عند إنشاء حساب جديد ويُطلب منه إدخاله للتحقق. عند الإلغاء يتم إنشاء الحساب مباشرة دون تحقق.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="space-y-1">
+              <Label className="font-semibold text-blue-900">التحقق بالرسالة النصية (OTP)</Label>
+              <p className="text-xs text-blue-700">
+                {requirePhoneOtp
+                  ? '🔒 مفعّل — العملاء الجدد يجب عليهم التحقق من رقم هاتفهم'
+                  : '🔓 معطّل — يمكن إنشاء الحساب مباشرة بدون رمز تحقق'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge
+                className={requirePhoneOtp
+                  ? 'bg-green-100 text-green-800 border-green-200'
+                  : 'bg-gray-100 text-gray-600 border-gray-200'}
+              >
+                {requirePhoneOtp ? 'مفعّل' : 'معطّل'}
+              </Badge>
+              <Switch
+                checked={requirePhoneOtp}
+                onCheckedChange={togglePhoneOtp}
+                disabled={updateSettingMutation.isPending}
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs text-amber-800 font-medium flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              ملاحظة: لإرسال رسائل SMS حقيقية يجب ربط خدمة SMS (مثل Twilio أو Unifonic) بالخادم. حالياً الرمز يُعرض في واجهة التسجيل للاختبار.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
@@ -100,6 +173,13 @@ export default function AdminSecurity() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {(!securityLogs || securityLogs.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
+                      لا توجد سجلات وصول متاحة
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -148,7 +228,7 @@ export default function AdminSecurity() {
                 <Shield className="w-6 h-6" />
                 محمي
               </div>
-              <p className="text-xs text-gray-500 mt-2">آخر فحص أمني: {securitySettings?.lastAudit}</p>
+              <p className="text-xs text-gray-500 mt-2">آخر فحص أمني: {securitySettings?.lastAudit || 'غير متاح'}</p>
             </CardContent>
           </Card>
         </div>

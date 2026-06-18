@@ -199,6 +199,17 @@ export default function AdminBusinessHours() {
                   onChange={(e) => handleInputChange('opening_time', e.target.value)}
                   data-testid="input-opening-time"
                 />
+                {formData.opening_time && (
+                  <p className="text-xs font-semibold text-blue-600">
+                    {parseInt(formData.opening_time.split(':')[0]) < 12 ? '☀️ صباحاً' : '🌙 مساءً'}
+                    {' — '}
+                    {(() => {
+                      const [h, m] = formData.opening_time.split(':').map(Number);
+                      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                      return `${hour12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+                    })()}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="closing_time" className="text-sm font-medium">
@@ -212,6 +223,17 @@ export default function AdminBusinessHours() {
                   onChange={(e) => handleInputChange('closing_time', e.target.value)}
                   data-testid="input-closing-time"
                 />
+                {formData.closing_time && (
+                  <p className="text-xs font-semibold text-orange-600">
+                    {parseInt(formData.closing_time.split(':')[0]) < 12 ? '☀️ صباحاً' : '🌙 مساءً'}
+                    {' — '}
+                    {(() => {
+                      const [h, m] = formData.closing_time.split(':').map(Number);
+                      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                      return `${hour12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+                    })()}
+                  </p>
+                )}
               </div>
             </div>
 
