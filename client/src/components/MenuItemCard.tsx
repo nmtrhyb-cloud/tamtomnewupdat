@@ -88,7 +88,7 @@ export default function MenuItemCard({
           const res = await fetch(`/api/products/${item.menuItemId}`);
           if (res.ok) {
             const product = await res.json();
-            await addItem(product, restaurantId, restaurantName);
+            await addItem(product);
           } else {
             setLocation(`/product/${item.menuItemId}`);
           }
@@ -103,7 +103,7 @@ export default function MenuItemCard({
       toast({ title: "لا يمكن الطلب", description: disabledMessage, variant: "destructive" });
       return;
     }
-    await addItem(item, restaurantId, restaurantName);
+    await addItem(item);
   };
 
   const handleClick = () => {
