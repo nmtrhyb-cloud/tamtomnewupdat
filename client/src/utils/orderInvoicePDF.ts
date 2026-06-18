@@ -5,6 +5,19 @@ export interface InvoiceItem {
   total: number;
 }
 
+export interface StoreReceiptSettings {
+  logoEnabled: boolean;
+  storeName: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  headerText: string;
+  footerText: string;
+  facebook: string;
+  instagram: string;
+  orderPrefix: string;
+}
+
 export interface InvoiceData {
   orderNumber: string;
   invoiceNumber?: string;
@@ -26,7 +39,9 @@ export interface InvoiceData {
 }
 
 const TAMTOM_RED = '#ec3714';
-const TAMTOM_LIGHT = '#fff5f3';
+const TAMTOM_GREEN = '#3d9a2b';
+const TAMTOM_ORANGE = '#f5a623';
+const TAMTOM_LIGHT = '#fff9f7';
 const TAMTOM_BORDER = '#fcd5cc';
 
 function formatCurrency(amount: number): string {
@@ -42,7 +57,19 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function generateInvoiceHTML(data: InvoiceData): string {
+function generateInvoiceHTML(data: InvoiceData, settings?: StoreReceiptSettings): string {
+  const logoEnabled = settings?.logoEnabled !== false;
+  const storeName = settings?.storeName || 'طمطوم للتوصيل';
+  const phone = settings?.phone || '';
+  const whatsapp = settings?.whatsapp || '';
+  const address = settings?.address || '';
+  const headerText = settings?.headerText || 'شكراً لتسوقكم معنا';
+  const footerText = settings?.footerText || 'لا تُقبل هذه الفاتورة إذا لم تكن مطابقة لنظام طمطوم وما لم يكن عليها ختم الشركة واسم وتوقيع الكابتن.';
+  const facebook = settings?.facebook || '';
+  const instagram = settings?.instagram || '';
+
+  const logoURL = `${window.location.origin}/tamtom-logo.png`;
+
   const itemRows = data.items.map(item => `
     <tr>
       <td style="padding:8px 10px;border-bottom:1px solid ${TAMTOM_BORDER};text-align:right;font-size:13px;">${item.name}</td>
@@ -52,7 +79,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
     </tr>
   `).join('');
 
-  const emptyRows = Array.from({ length: Math.max(0, 6 - data.items.length) }, () => `
+  const emptyRows = Array.from({ length: Math.max(0, 5 - data.items.length) }, () => `
     <tr>
       <td style="padding:10px;border-bottom:1px solid ${TAMTOM_BORDER};">&nbsp;</td>
       <td style="padding:10px;border-bottom:1px solid ${TAMTOM_BORDER};border-right:1px solid ${TAMTOM_BORDER};">&nbsp;</td>
@@ -60,6 +87,13 @@ function generateInvoiceHTML(data: InvoiceData): string {
       <td style="padding:10px;border-bottom:1px solid ${TAMTOM_BORDER};border-right:1px solid ${TAMTOM_BORDER};">&nbsp;</td>
     </tr>
   `).join('');
+
+  const contactLines: string[] = [];
+  if (phone) contactLines.push(`📞 ${phone}`);
+  if (whatsapp) contactLines.push(`💬 واتساب: ${whatsapp}`);
+  if (address) contactLines.push(`📍 ${address}`);
+  if (facebook) contactLines.push(`fb: ${facebook}`);
+  if (instagram) contactLines.push(`ig: ${instagram}`);
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -69,11 +103,11 @@ function generateInvoiceHTML(data: InvoiceData): string {
   <title>فاتورة طلب #${data.orderNumber}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #f5f5f5; direction: rtl; }
-    .page { background: white; width: 80mm; max-width: 420px; margin: 20px auto; border-radius: 12px; overflow: hidden; border: 2px solid ${TAMTOM_BORDER}; }
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #f0f0f0; direction: rtl; }
+    .page { background: white; width: 80mm; max-width: 420px; margin: 20px auto; border-radius: 14px; overflow: hidden; border: 2px solid ${TAMTOM_BORDER}; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
     @media print {
       body { background: white; }
-      .page { margin: 0; border: none; border-radius: 0; width: 100%; max-width: 100%; }
+      .page { margin: 0; border: none; border-radius: 0; width: 100%; max-width: 100%; box-shadow: none; }
       .no-print { display: none !important; }
     }
     table { border-collapse: collapse; width: 100%; }
@@ -91,35 +125,76 @@ function generateInvoiceHTML(data: InvoiceData): string {
 
   <div class="page">
     <!-- الترويسة -->
-    <div style="background:${TAMTOM_RED};padding:18px 20px;display:flex;justify-content:space-between;align-items:center;">
-      <div style="text-align:right;">
-        <div style="color:white;font-size:11px;opacity:0.85;">التاريخ: ............................</div>
-        <div style="color:white;font-size:11px;opacity:0.85;margin-top:4px;">اسم المحل: ..........................</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="background:white;border-radius:10px;padding:6px 14px;display:inline-block;">
-          <span style="color:${TAMTOM_RED};font-size:26px;font-weight:900;letter-spacing:-1px;">طمطوم</span>
+    <div style="background:linear-gradient(135deg,${TAMTOM_RED} 0%,#c82a08 100%);padding:0;overflow:hidden;">
+      <!-- شريط أخضر علوي -->
+      <div style="background:${TAMTOM_GREEN};height:5px;"></div>
+      
+      <!-- محتوى الترويسة -->
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <!-- معلومات الطلب -->
+        <div style="text-align:right;">
+          <div style="color:rgba(255,255,255,0.8);font-size:10px;margin-bottom:2px;">التاريخ</div>
+          <div style="color:white;font-size:11px;font-weight:bold;">${formatDate(data.date)}</div>
+          ${data.type === 'wasalni' ? `<div style="margin-top:6px;background:${TAMTOM_ORANGE};color:white;font-size:10px;padding:2px 8px;border-radius:10px;display:inline-block;">وصلني</div>` : ''}
         </div>
-        <div style="color:white;font-size:10px;margin-top:4px;opacity:0.9;">منصة طمطوم للتوصيل</div>
+
+        <!-- الشعار -->
+        <div style="text-align:center;flex:1;">
+          ${logoEnabled ? `
+            <img src="${logoURL}" 
+                 style="height:70px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" 
+                 onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
+            <div id="logo-fallback" style="display:none;background:white;border-radius:10px;padding:4px 12px;display:inline-block;">
+              <span style="color:${TAMTOM_RED};font-size:22px;font-weight:900;">طمطوم</span>
+              <div style="color:${TAMTOM_GREEN};font-size:9px;text-align:center;">TAM TOM</div>
+            </div>
+          ` : `
+            <div style="background:white;border-radius:10px;padding:6px 14px;display:inline-block;">
+              <span style="color:${TAMTOM_RED};font-size:24px;font-weight:900;letter-spacing:-1px;">طمطوم</span>
+              <div style="color:${TAMTOM_GREEN};font-size:10px;text-align:center;">TAM TOM</div>
+            </div>
+          `}
+          ${headerText ? `<div style="color:rgba(255,255,255,0.9);font-size:10px;margin-top:4px;">${headerText}</div>` : ''}
+        </div>
+
+        <!-- اسم المتجر -->
+        <div style="text-align:left;min-width:60px;">
+          <div style="color:rgba(255,255,255,0.8);font-size:10px;margin-bottom:2px;">المتجر</div>
+          <div style="color:white;font-size:10px;font-weight:bold;">${storeName}</div>
+        </div>
       </div>
+
+      <!-- معلومات التواصل -->
+      ${contactLines.length > 0 ? `
+      <div style="background:rgba(0,0,0,0.15);padding:6px 16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+        ${contactLines.map(c => `<span style="color:rgba(255,255,255,0.9);font-size:10px;">${c}</span>`).join('')}
+      </div>
+      ` : ''}
+
+      <!-- شريط برتقالي سفلي -->
+      <div style="background:${TAMTOM_ORANGE};height:4px;"></div>
     </div>
 
     <!-- معلومات الفاتورة -->
-    <div style="padding:10px 16px;display:flex;justify-content:space-between;background:${TAMTOM_LIGHT};border-bottom:1px solid ${TAMTOM_BORDER};">
+    <div style="padding:8px 14px;display:flex;justify-content:space-between;background:${TAMTOM_LIGHT};border-bottom:2px solid ${TAMTOM_BORDER};">
       <div style="font-size:12px;color:#333;">
         <strong style="color:${TAMTOM_RED};">رقم الفاتورة:</strong>
-        <span style="font-weight:bold;">${data.invoiceNumber || data.orderNumber}</span>
+        <span style="font-weight:bold;"> ${data.invoiceNumber || data.orderNumber}</span>
       </div>
       <div style="font-size:12px;color:#333;">
-        <strong style="color:${TAMTOM_RED};">رقم الطلب:</strong>
-        <span style="font-weight:bold;">${data.orderNumber}</span>
+        <strong style="color:${TAMTOM_GREEN};">رقم الطلب:</strong>
+        <span style="font-weight:bold;"> ${data.orderNumber}</span>
       </div>
     </div>
 
-    ${data.storeName || data.customerName ? `
-    <div style="padding:8px 16px;background:#fff;border-bottom:1px solid ${TAMTOM_BORDER};font-size:12px;color:#555;">
-      ${data.storeName ? `<span><strong>المتجر:</strong> ${data.storeName}</span>` : ''}
-      ${data.customerName ? `<span style="margin-right:16px;"><strong>العميل:</strong> ${data.customerName}</span>` : ''}
+    <!-- بيانات العميل -->
+    ${data.customerName || data.customerPhone || data.customerAddress ? `
+    <div style="padding:8px 14px;background:#fff;border-bottom:1px solid ${TAMTOM_BORDER};">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        ${data.customerName ? `<div style="font-size:11px;color:#555;"><strong style="color:${TAMTOM_RED};">العميل:</strong> ${data.customerName}</div>` : ''}
+        ${data.customerPhone ? `<div style="font-size:11px;color:#555;"><strong style="color:${TAMTOM_RED};">الهاتف:</strong> ${data.customerPhone}</div>` : ''}
+      </div>
+      ${data.customerAddress ? `<div style="font-size:11px;color:#555;margin-top:3px;"><strong style="color:${TAMTOM_RED};">العنوان:</strong> ${data.customerAddress}</div>` : ''}
     </div>
     ` : ''}
 
@@ -127,10 +202,10 @@ function generateInvoiceHTML(data: InvoiceData): string {
     <table>
       <thead>
         <tr>
-          <th style="background:${TAMTOM_RED};color:white;padding:10px;text-align:right;font-size:13px;font-weight:bold;">تفاصيل الطلبات</th>
-          <th style="background:${TAMTOM_RED};color:white;padding:10px;text-align:center;font-size:13px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:70px;">السعر</th>
-          <th style="background:${TAMTOM_RED};color:white;padding:10px;text-align:center;font-size:13px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:45px;">العدد</th>
-          <th style="background:${TAMTOM_RED};color:white;padding:10px;text-align:center;font-size:13px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:80px;">الإجمالي</th>
+          <th style="background:${TAMTOM_RED};color:white;padding:9px 10px;text-align:right;font-size:12px;font-weight:bold;">تفاصيل الطلب</th>
+          <th style="background:${TAMTOM_RED};color:white;padding:9px;text-align:center;font-size:12px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:65px;">السعر</th>
+          <th style="background:${TAMTOM_RED};color:white;padding:9px;text-align:center;font-size:12px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:40px;">الكمية</th>
+          <th style="background:${TAMTOM_RED};color:white;padding:9px;text-align:center;font-size:12px;font-weight:bold;border-right:1px solid rgba(255,255,255,0.3);width:75px;">الإجمالي</th>
         </tr>
       </thead>
       <tbody>
@@ -140,57 +215,108 @@ function generateInvoiceHTML(data: InvoiceData): string {
     </table>
 
     <!-- الإجمالي -->
-    <table style="border-top:2px solid ${TAMTOM_RED};">
-      <tr>
-        <td style="width:50%;padding:10px 14px;">
-          <div style="background:${TAMTOM_RED};color:white;text-align:center;padding:8px;font-weight:bold;font-size:13px;border-radius:4px;">إجمالي الفاتورة</div>
-          <div style="text-align:center;padding:10px;font-size:15px;font-weight:bold;color:#333;">${formatCurrency(data.total)}</div>
-        </td>
-        <td style="width:50%;padding:10px 14px;border-right:2px solid ${TAMTOM_BORDER};">
-          <div style="background:${TAMTOM_RED};color:white;text-align:center;padding:8px;font-weight:bold;font-size:13px;border-radius:4px;">إجمالي الطلب</div>
-          <div style="text-align:center;padding:10px;font-size:15px;font-weight:bold;color:#333;">
-            ${formatCurrency(data.subtotal)}
-            ${data.deliveryFee ? `<div style="font-size:11px;color:#888;font-weight:normal;">+ توصيل: ${formatCurrency(data.deliveryFee)}</div>` : ''}
-            ${data.discount ? `<div style="font-size:11px;color:green;font-weight:normal;">- خصم: ${formatCurrency(data.discount)}</div>` : ''}
-          </div>
-        </td>
-      </tr>
-    </table>
+    <div style="border-top:3px solid ${TAMTOM_RED};">
+      <table>
+        <tr>
+          <td style="width:50%;padding:10px 12px;border-left:2px solid ${TAMTOM_BORDER};">
+            <div style="background:${TAMTOM_GREEN};color:white;text-align:center;padding:7px;font-weight:bold;font-size:12px;border-radius:6px;">إجمالي الفاتورة</div>
+            <div style="text-align:center;padding:8px 4px;font-size:16px;font-weight:bold;color:${TAMTOM_RED};">${formatCurrency(data.total)}</div>
+          </td>
+          <td style="width:50%;padding:10px 12px;">
+            <div style="background:${TAMTOM_ORANGE};color:white;text-align:center;padding:7px;font-weight:bold;font-size:12px;border-radius:6px;">تفصيل الطلب</div>
+            <div style="text-align:center;padding:4px;font-size:13px;font-weight:bold;color:#333;">${formatCurrency(data.subtotal)}</div>
+            ${data.deliveryFee ? `<div style="font-size:10px;color:#666;text-align:center;">+ توصيل: ${formatCurrency(data.deliveryFee)}</div>` : ''}
+            ${data.discount ? `<div style="font-size:10px;color:${TAMTOM_GREEN};text-align:center;">- خصم: ${formatCurrency(data.discount)}</div>` : ''}
+          </td>
+        </tr>
+      </table>
+    </div>
 
     <!-- السائق والتوقيع -->
-    <div style="padding:12px 16px;border-top:1px solid ${TAMTOM_BORDER};display:flex;justify-content:space-between;gap:16px;">
+    <div style="padding:10px 14px;border-top:1px solid ${TAMTOM_BORDER};background:${TAMTOM_LIGHT};display:flex;justify-content:space-between;gap:14px;">
       <div style="flex:1;">
-        <div style="font-size:12px;font-weight:bold;color:${TAMTOM_RED};margin-bottom:4px;">كابتن التوصيل:</div>
-        <div style="font-size:12px;color:#555;border-bottom:1px dashed #ccc;padding-bottom:4px;">${data.driverName || '............................'}</div>
+        <div style="font-size:11px;font-weight:bold;color:${TAMTOM_GREEN};margin-bottom:3px;">كابتن التوصيل:</div>
+        <div style="font-size:12px;color:#444;border-bottom:1px dashed #bbb;padding-bottom:4px;">${data.driverName || '............................'}</div>
+        ${data.driverPhone ? `<div style="font-size:10px;color:#888;margin-top:2px;">${data.driverPhone}</div>` : ''}
       </div>
       <div style="flex:1;text-align:left;">
-        <div style="font-size:12px;font-weight:bold;color:${TAMTOM_RED};margin-bottom:4px;">توقيع الكابتن:</div>
-        <div style="font-size:12px;color:#aaa;border-bottom:1px dashed #ccc;padding-bottom:4px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+        <div style="font-size:11px;font-weight:bold;color:${TAMTOM_GREEN};margin-bottom:3px;">توقيع الكابتن:</div>
+        <div style="font-size:12px;color:#ccc;border-bottom:1px dashed #bbb;padding-bottom:4px;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
       </div>
     </div>
 
-    <!-- ملاحظة -->
-    <div style="background:${TAMTOM_LIGHT};border-top:1px solid ${TAMTOM_BORDER};padding:8px 14px;">
-      <p style="font-size:10px;color:#666;text-align:center;line-height:1.5;">
-        لا تُقبل هذه الفاتورة إذا لم تكن مطابقة لنظام طمطوم وما لم يكن عليها ختم الشركة واسم وتوقيع الكابتن.
-      </p>
-      ${data.paymentMethod ? `<p style="font-size:11px;text-align:center;margin-top:4px;"><strong>طريقة الدفع:</strong> ${data.paymentMethod}</p>` : ''}
-      ${data.notes ? `<p style="font-size:11px;text-align:center;margin-top:4px;color:#888;"><strong>ملاحظات:</strong> ${data.notes}</p>` : ''}
+    <!-- طريقة الدفع والملاحظات -->
+    ${data.paymentMethod || data.notes ? `
+    <div style="padding:6px 14px;border-top:1px solid ${TAMTOM_BORDER};display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
+      ${data.paymentMethod ? `<div style="font-size:11px;color:#555;"><strong style="color:${TAMTOM_RED};">الدفع:</strong> ${data.paymentMethod}</div>` : ''}
+      ${data.notes ? `<div style="font-size:11px;color:#777;"><strong>ملاحظات:</strong> ${data.notes}</div>` : ''}
+    </div>
+    ` : ''}
+
+    <!-- التذييل -->
+    <div style="background:linear-gradient(135deg,${TAMTOM_RED} 0%,#c82a08 100%);padding:0;">
+      <div style="background:${TAMTOM_ORANGE};height:3px;"></div>
+      <div style="padding:10px 14px;text-align:center;">
+        <p style="font-size:10px;color:rgba(255,255,255,0.85);line-height:1.6;">
+          ${footerText}
+        </p>
+      </div>
+      <div style="background:${TAMTOM_GREEN};height:4px;"></div>
     </div>
   </div>
 </body>
 </html>`;
 }
 
-export function printOrderInvoice(data: InvoiceData): void {
-  const html = generateInvoiceHTML(data);
-  const win = window.open('', '_blank', 'width=520,height=750,scrollbars=yes');
+export async function fetchReceiptSettings(): Promise<StoreReceiptSettings> {
+  try {
+    const res = await fetch('/api/ui-settings');
+    if (!res.ok) throw new Error('Failed to fetch settings');
+    const data: Array<{ key: string; value: string }> = await res.json();
+    const map = new Map(data.map(s => [s.key, s.value]));
+
+    return {
+      logoEnabled: map.get('receipt_logo_enabled') !== 'false',
+      storeName: map.get('receipt_store_name') || 'طمطوم للتوصيل',
+      phone: map.get('receipt_phone') || '',
+      whatsapp: map.get('receipt_whatsapp') || '',
+      address: map.get('receipt_address') || '',
+      headerText: map.get('receipt_header_text') || 'شكراً لتسوقكم معنا',
+      footerText: map.get('receipt_footer_text') || 'لا تُقبل هذه الفاتورة إذا لم تكن مطابقة لنظام طمطوم.',
+      facebook: map.get('receipt_facebook') || '',
+      instagram: map.get('receipt_instagram') || '',
+      orderPrefix: map.get('order_number_prefix') || 'TT',
+    };
+  } catch {
+    return {
+      logoEnabled: true,
+      storeName: 'طمطوم للتوصيل',
+      phone: '',
+      whatsapp: '',
+      address: '',
+      headerText: 'شكراً لتسوقكم معنا',
+      footerText: 'لا تُقبل هذه الفاتورة إذا لم تكن مطابقة لنظام طمطوم.',
+      facebook: '',
+      instagram: '',
+      orderPrefix: 'TT',
+    };
+  }
+}
+
+function openInvoiceWindow(html: string): void {
+  const win = window.open('', '_blank', 'width=520,height=780,scrollbars=yes');
   if (!win) {
     alert('يرجى السماح بالنوافذ المنبثقة لطباعة الفاتورة');
     return;
   }
   win.document.write(html);
   win.document.close();
+}
+
+export async function printOrderInvoice(data: InvoiceData): Promise<void> {
+  const settings = await fetchReceiptSettings();
+  const html = generateInvoiceHTML(data, settings);
+  openInvoiceWindow(html);
 }
 
 export function buildOrderInvoiceData(order: any): InvoiceData {
@@ -216,7 +342,7 @@ export function buildOrderInvoiceData(order: any): InvoiceData {
     orderNumber: order.orderNumber || order.id?.slice(0, 8)?.toUpperCase() || '—',
     invoiceNumber: `INV-${order.orderNumber || order.id?.slice(0, 8)?.toUpperCase()}`,
     date: order.createdAt || new Date().toISOString(),
-    storeName: order.restaurantName || order.storeName || '',
+    storeName: order.storeName || '',
     customerName: order.customerName || order.userName || '',
     customerPhone: order.customerPhone || '',
     customerAddress: order.deliveryAddress || order.address || '',
