@@ -383,6 +383,39 @@ export class DatabaseStorage {
     }
   }
 
+  async getOrdersByDriver(driverId: string, statusFilter?: string[]): Promise<any[]> {
+    try {
+      const conditions: any[] = [eq(orders.driverId, driverId)];
+      if (statusFilter && statusFilter.length > 0) {
+        conditions.push(inArray(orders.status, statusFilter));
+      }
+      const result = await this.db.select({
+        order: orders,
+        driverName: drivers.name,
+        driverPhone: drivers.phone,
+      })
+      .from(orders)
+      .leftJoin(drivers, eq(orders.driverId, drivers.id))
+      .where(and(...conditions))
+      .orderBy(desc(orders.createdAt));
+      return result.map(r => ({ ...r.order, driverName: r.driverName, driverPhone: r.driverPhone }));
+    } catch (error) {
+      console.error('Error fetching driver orders:', error);
+      return [];
+    }
+  }
+
+  async getScheduledOrders(): Promise<any[]> {
+    try {
+      const result = await this.db.select().from(orders)
+        .where(eq(orders.status, 'scheduled'));
+      return result;
+    } catch (error) {
+      console.error('Error fetching scheduled orders:', error);
+      return [];
+    }
+  }
+
   async getOrdersByRestaurant(restaurantId: string): Promise<any[]> {
     try {
       const result = await this.db.select({

@@ -45,10 +45,33 @@ import {
 import { DatabaseStorage } from "../db";
 import { coerceRequestData } from "../utils/coercion";
 import { logActivity } from "../utils/activityLogger";
+import { productsCache, featuredProductsCache, deliveryFeeCache } from "../utils/cache";
 
 const router = express.Router();
 const dbStorage = new DatabaseStorage();
 const db = dbStorage.db;
+
+// كاش التوكنات - يخزن بيانات المدير لمدة 5 دقائق لتجنب استعلام DB في كل طلب
+const adminTokenCache = new Map<string, { admin: any; expiresAt: number }>();
+const TOKEN_CACHE_TTL = 5 * 60 * 1000; // 5 دقائق
+
+function getCachedAdmin(token: string): any | null {
+  const entry = adminTokenCache.get(token);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    adminTokenCache.delete(token);
+    return null;
+  }
+  return entry.admin;
+}
+
+function setCachedAdmin(token: string, admin: any): void {
+  adminTokenCache.set(token, { admin, expiresAt: Date.now() + TOKEN_CACHE_TTL });
+}
+
+export function invalidateAdminCache(token: string): void {
+  adminTokenCache.delete(token);
+}
 
 // Schema object for direct database operations
 const schema = {
@@ -78,15 +101,24 @@ const schema = {
 };
 
 // Middleware للمصادقة - يُضيف req.admin إذا كان التوكن صحيحاً
+// يستخدم كاشًا في الذاكرة لتجنب استعلام DB في كل طلب
 router.use(async (req: any, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const adminUser = await dbStorage.getAdminById(token);
+
+      // فحص الكاش أولاً
+      let adminUser = getCachedAdmin(token);
+      if (!adminUser) {
+        adminUser = await dbStorage.getAdminById(token);
+        if (adminUser && adminUser.isActive) {
+          setCachedAdmin(token, adminUser);
+        }
+      }
+
       if (adminUser && adminUser.isActive) {
         req.admin = adminUser;
-        // تحليل الصلاحيات للمدير الفرعي
         if (adminUser.userType === 'sub_admin') {
           try {
             req.adminPermissions = adminUser.permissions ? JSON.parse(adminUser.permissions) : [];
@@ -94,7 +126,7 @@ router.use(async (req: any, res, next) => {
             req.adminPermissions = [];
           }
         } else {
-          req.adminPermissions = null; // null = all permissions (main admin)
+          req.adminPermissions = null;
         }
       }
     }
@@ -340,6 +372,8 @@ router.post("/menu-items", async (req, res) => {
     });
     
     const newMenuItem = await storage.createMenuItem(validatedData);
+    productsCache.clear();
+    featuredProductsCache.clear();
     broadcastSettingsChanged('menu_items');
     res.status(201).json(newMenuItem);
   } catch (error) {
@@ -370,6 +404,8 @@ router.put("/menu-items/:id", async (req, res) => {
       return res.status(404).json({ error: "عنصر القائمة غير موجود" });
     }
     
+    productsCache.clear();
+    featuredProductsCache.clear();
     broadcastSettingsChanged('menu_items');
     res.json(updatedMenuItem);
   } catch (error) {
@@ -393,6 +429,8 @@ router.delete("/menu-items/:id", async (req, res) => {
     if (!success) {
       return res.status(404).json({ error: "عنصر القائمة غير موجود" });
     }
+    productsCache.clear();
+    featuredProductsCache.clear();
     broadcastSettingsChanged('menu_items');
     
     res.json({ success: true });
@@ -1958,6 +1996,12 @@ router.put("/ui-settings/:key", async (req, res) => {
       invalidateCache(key);
       invalidateCache('ui-settings-all');
     } catch {}
+
+    // مسح كاش رسوم التوصيل عند تغيير إعدادات المتجر أو التوصيل
+    const deliveryRelatedKeys = ['store_lat', 'store_lng', 'delivery_base_fee', 'delivery_fee_per_km', 'min_delivery_fee', 'delivery_fee_default'];
+    if (deliveryRelatedKeys.includes(key)) {
+      deliveryFeeCache.clear();
+    }
 
     res.json(setting);
   } catch (error) {

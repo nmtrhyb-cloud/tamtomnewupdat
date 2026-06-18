@@ -54,6 +54,7 @@ export const uiSettingsCache = new Cache<any[]>(30);
 
 // كاش المنتجات والمطاعم والتصنيفات
 export const productsCache = new Cache<any[]>(60);
+export const featuredProductsCache = new Cache<any[]>(60);
 export const restaurantsCache = new Cache<any[]>(30);
 export const categoriesCache = new Cache<any[]>(120);
 

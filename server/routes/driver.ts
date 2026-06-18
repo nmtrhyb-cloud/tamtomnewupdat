@@ -58,16 +58,16 @@ router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest
   try {
     const driverId = req.driverId!;
 
-    const driver = await storage.getDriver(driverId);
+    const [driver, driverOrders, driverBalance, driverCommissions] = await Promise.all([
+      storage.getDriver(driverId),
+      (storage as any).getOrdersByDriver ? (storage as any).getOrdersByDriver(driverId) : storage.getOrders().then((all: any[]) => all.filter((o: any) => o.driverId === driverId)),
+      storage.getDriverBalance(driverId),
+      storage.getDriverCommissions(driverId),
+    ]);
+
     if (!driver) {
       return res.status(404).json({ error: "السائق غير موجود" });
     }
-
-    const allOrders = await storage.getOrders();
-    const driverOrders = allOrders.filter(order => order.driverId === driverId);
-
-    const driverBalance = await storage.getDriverBalance(driverId);
-    const driverCommissions = await storage.getDriverCommissions(driverId);
 
     const advStorage = new AdvancedDatabaseStorage(storage.db);
     const driverReviews = await advStorage.getDriverReviews(driverId);
@@ -100,8 +100,8 @@ router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest
       sum + (parseFloat(commission.commissionAmount?.toString()) || 0), 0
     );
 
-    const availableOrders = allOrders
-      .filter(order => (order.status === "confirmed" || order.status === "assigned") && order.driverId === driverId)
+    const availableOrders = driverOrders
+      .filter((order: any) => order.status === "confirmed" || order.status === "assigned")
       .slice(0, 10);
 
     const currentOrders = driverOrders.filter(order =>
@@ -146,14 +146,14 @@ router.get("/app/dashboard", requireDriverAuth, async (req: AuthenticatedRequest
 router.get("/orders/available", requireDriverAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const driverId = req.driverId!;
-    const allOrders = await storage.getOrders();
 
-    const availableOrders = allOrders.filter(order =>
-      (order.status === "confirmed" || order.status === "assigned") &&
-      order.driverId === driverId
-    );
+    const availableOrders: any[] = (storage as any).getOrdersByDriver
+      ? await (storage as any).getOrdersByDriver(driverId, ["confirmed", "assigned"])
+      : (await storage.getOrders()).filter((o: any) =>
+          (o.status === "confirmed" || o.status === "assigned") && o.driverId === driverId
+        );
 
-    availableOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    availableOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     res.json(availableOrders);
   } catch (error) {
     console.error("خطأ في جلب الطلبات المتاحة:", error);
@@ -167,22 +167,27 @@ router.get("/orders", requireDriverAuth, async (req: AuthenticatedRequest, res) 
     const driverId = req.driverId!;
     const { status } = req.query;
 
-    const allOrders = await storage.getOrders();
-    let driverOrders = allOrders.filter(order => order.driverId === driverId);
-
+    let statusFilter: string[] | undefined;
     if (status === 'active') {
-      driverOrders = driverOrders.filter(order =>
-        ['preparing', 'ready', 'picked_up', 'on_way'].includes(order.status)
-      );
+      statusFilter = ['preparing', 'ready', 'picked_up', 'on_way'];
     } else if (status === 'history') {
-      driverOrders = driverOrders.filter(order =>
-        ['delivered', 'cancelled'].includes(order.status)
-      );
+      statusFilter = ['delivered', 'cancelled'];
     } else if (status && typeof status === 'string') {
-      driverOrders = driverOrders.filter(order => order.status === status);
+      statusFilter = [status];
     }
 
-    driverOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    let driverOrders: any[];
+    if ((storage as any).getOrdersByDriver) {
+      driverOrders = await (storage as any).getOrdersByDriver(driverId, statusFilter);
+    } else {
+      const allOrders = await storage.getOrders();
+      driverOrders = allOrders.filter((order: any) => order.driverId === driverId);
+      if (statusFilter) {
+        driverOrders = driverOrders.filter((order: any) => statusFilter!.includes(order.status));
+      }
+    }
+
+    driverOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     res.json(driverOrders);
   } catch (error) {

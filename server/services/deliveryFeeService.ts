@@ -112,15 +112,36 @@ export function estimateDeliveryTime(distanceKm: number): string {
  * جلب إعدادات رسوم التوصيل من قاعدة البيانات
  */
 async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
+  // قراءة إعدادات الواجهة كاحتياط
+  let uiBaseFee = DEFAULT_BASE_FEE;
+  let uiPerKmFee = DEFAULT_PER_KM_FEE;
+  let uiMinFee = DEFAULT_MIN_FEE;
+  try {
+    const allUiSettings = await storage.getUiSettings();
+    const uiMap = new Map(allUiSettings.map((s: any) => [s.key, s.value]));
+    const rawBase = parseFloat(uiMap.get('delivery_base_fee') || '0');
+    const rawPerKm = parseFloat(uiMap.get('delivery_fee_per_km') || '0');
+    const rawMin = parseFloat(uiMap.get('min_delivery_fee') || '0');
+    if (rawBase > 0) uiBaseFee = rawBase;
+    if (rawPerKm > 0) uiPerKmFee = rawPerKm;
+    if (rawMin > 0) uiMinFee = rawMin;
+  } catch (_) {}
+
   try {
     const globalSettings = await storage.getDeliveryFeeSettings();
     if (globalSettings && globalSettings.type) {
+      const dbBaseFee = Math.max(0, parseFloat(globalSettings.baseFee || '0'));
+      const dbPerKmFee = Math.max(0, parseFloat(globalSettings.perKmFee || '0'));
+      const dbMinFee = Math.max(0, parseFloat(globalSettings.minFee || '0'));
+      const dbMaxFee = Math.max(0, parseFloat(globalSettings.maxFee || DEFAULT_MAX_FEE.toString()));
+
       return {
         type: globalSettings.type as DeliveryFeeSettings['type'],
-        baseFee: Math.max(0, parseFloat(globalSettings.baseFee || '0')),
-        perKmFee: Math.max(0, parseFloat(globalSettings.perKmFee || '0')),
-        minFee: Math.max(0, parseFloat(globalSettings.minFee || '0')),
-        maxFee: Math.max(0, parseFloat(globalSettings.maxFee || DEFAULT_MAX_FEE.toString())),
+        // إذا كانت القيمة في DB صفر، استخدم إعدادات الواجهة كاحتياط
+        baseFee: dbBaseFee > 0 ? dbBaseFee : uiBaseFee,
+        perKmFee: dbPerKmFee > 0 ? dbPerKmFee : uiPerKmFee,
+        minFee: dbMinFee > 0 ? dbMinFee : uiMinFee,
+        maxFee: dbMaxFee > 0 ? dbMaxFee : DEFAULT_MAX_FEE,
         freeDeliveryThreshold: Math.max(0, parseFloat(globalSettings.freeDeliveryThreshold || '0')),
       };
     }
@@ -130,9 +151,9 @@ async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
 
   return {
     type: 'per_km',
-    baseFee: DEFAULT_BASE_FEE,
-    perKmFee: DEFAULT_PER_KM_FEE,
-    minFee: DEFAULT_MIN_FEE,
+    baseFee: uiBaseFee,
+    perKmFee: uiPerKmFee,
+    minFee: uiMinFee,
     maxFee: DEFAULT_MAX_FEE,
     freeDeliveryThreshold: 0
   };

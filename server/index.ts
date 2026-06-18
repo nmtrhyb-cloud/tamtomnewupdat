@@ -99,16 +99,41 @@ app.use((req, res, next) => {
     // ===== مؤقت تفعيل الطلبات المجدولة =====
     // كل دقيقة: ابحث عن طلبات scheduled موعدها خلال 30 دقيقة أو أقل وفعّلها
     setInterval(async () => {
-      // جلب جميع الطلبات مرة واحدة فقط ثم إعادة استخدامها في جميع الفحوصات
-      let allOrders: any[] = [];
+      // جلب الطلبات المجدولة فقط بدلاً من جميع الطلبات
+      let scheduledOrders: any[] = [];
       try {
-        allOrders = await storage.getOrders();
+        if ((storage as any).getScheduledOrders) {
+          scheduledOrders = await (storage as any).getScheduledOrders();
+        } else {
+          const all = await storage.getOrders();
+          scheduledOrders = all.filter((o: any) => o.status === 'scheduled');
+        }
       } catch (e) {
         console.error('خطأ في جلب الطلبات للمؤقت:', e);
       }
 
+      // جلب الطلبات غير المسندة للتنبيهات (فقط الحالات النشطة بدون سائق)
+      let unassignedOrders: any[] = [];
       try {
-        const scheduledOrders = allOrders.filter((o: any) => o.status === 'scheduled');
+        const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready'];
+        if ((storage as any).db) {
+          const { orders: ordersTable } = await import("../shared/schema");
+          const { isNull: dbIsNull, inArray: dbInArray } = await import("drizzle-orm");
+          unassignedOrders = await (storage as any).db
+            .select()
+            .from(ordersTable)
+            .where(
+              (await import("drizzle-orm")).and(
+                dbIsNull(ordersTable.driverId),
+                dbInArray(ordersTable.status, activeStatuses)
+              )
+            );
+        }
+      } catch (e) {
+        // fallback: skip unassigned check
+      }
+
+      try {
         
         const db = (storage as any).db;
         let scheduledWasalni: any[] = [];
@@ -209,18 +234,13 @@ app.use((req, res, next) => {
       } catch (e) { console.error('خطأ في مؤقت الطلبات المجدولة:', e); }
 
       // ===== تنبيه الطلبات التي مرّ عليها 15 دقيقة دون تعيين سائق =====
-      // نُعيد استخدام allOrders التي جلبناها أعلاه بدلاً من طلب قاعدة البيانات مجدداً
       try {
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
         const alertedMap: Map<string, number> = ((globalThis as any).__unassignedAlerts ||= new Map());
-        // تنظيف العناصر القديمة (أقدم من 24 ساعة)
         const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
         for (const [k, v] of alertedMap) if (v < dayAgo) alertedMap.delete(k);
 
-        const stale = allOrders.filter((o: any) => {
-          if (o.driverId) return false;
-          const status = String(o.status || '').toLowerCase();
-          if (!['pending', 'confirmed', 'preparing', 'ready'].includes(status)) return false;
+        const stale = unassignedOrders.filter((o: any) => {
           const createdAt = o.createdAt ? new Date(o.createdAt) : null;
           if (!createdAt || isNaN(createdAt.getTime())) return false;
           if (createdAt > fifteenMinutesAgo) return false;

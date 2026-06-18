@@ -7,7 +7,7 @@ import { storage } from "./storage";
 import { dbStorage } from "./db";
 import { log } from "./viteServer";
 import { broadcastSettingsChanged } from "./broadcast";
-import { uiSettingsCache } from "./utils/cache";
+import { uiSettingsCache, productsCache, featuredProductsCache } from "./utils/cache";
 import authRoutes from "./routes/auth";
 import { customerRoutes } from "./routes/customer";
 import driverRoutes from "./routes/driver";
@@ -126,8 +126,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Categories
   app.get("/api/categories", async (req, res) => {
     try {
-      const categories = await storage.getCategories();
-      res.json(categories);
+      const [categories, allProducts] = await Promise.all([
+        storage.getCategories(),
+        storage.getAllMenuItems(),
+      ]);
+      // جلب أسماء التصنيفات التي تحتوي على منتجات فعلية
+      const usedCategoryNames = new Set(
+        allProducts
+          .filter((p: any) => p.isAvailable !== false && p.category)
+          .map((p: any) => (p.category as string).trim().toLowerCase())
+      );
+      // فلترة التصنيفات: أظهر فقط التصنيفات التي لها منتجات أو إذا كان هناك إعداد لإظهار الكل
+      const filtered = categories.filter((c: any) => {
+        if (c.isActive === false) return false;
+        return usedCategoryNames.has((c.name as string).trim().toLowerCase());
+      });
+      res.json(filtered);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch categories" });
     }
@@ -149,7 +163,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Menu Items
   app.get("/api/products", async (req, res) => {
     try {
+      const cached = productsCache.get('all');
+      if (cached) return res.json(cached);
       const products = await storage.getAllMenuItems();
+      productsCache.set('all', products);
       res.json(products);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
@@ -158,9 +175,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/featured", async (req, res) => {
     try {
+      const cached = featuredProductsCache.get('all');
+      if (cached) return res.json(cached);
       const products = await storage.getAllMenuItems();
       const featured = products.filter(p => p.isFeatured);
-      res.json(featured.length > 0 ? featured : products.slice(0, 12));
+      const result = featured.length > 0 ? featured : products.slice(0, 12);
+      featuredProductsCache.set('all', result);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured products" });
     }
@@ -181,7 +202,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/restaurants/:restaurantId/menu", async (_req, res) => {
     try {
-      const allItems = await storage.getAllMenuItems();
+      const cached = productsCache.get('all');
+      const allItems = cached ?? await storage.getAllMenuItems();
       res.json({ allItems });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch menu items" });
@@ -295,15 +317,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // تشغيل كل الاستعلامات بالتوازي لخفض زمن الاستجابة
       const [
         uiSettings,
-        categories,
+        allCategories,
+        allBootstrapProducts,
         specialOffers,
         paymentMethodsRaw,
       ] = await Promise.all([
         storage.getUiSettings().catch(() => []),
         storage.getCategories().catch(() => []),
+        storage.getAllMenuItems().catch(() => []),
         storage.getActiveSpecialOffers().catch(() => []),
         (storage as any).getActivePaymentMethods?.().catch(() => []) ?? Promise.resolve([]),
       ]);
+
+      // فلترة التصنيفات: أظهر فقط التصنيفات التي لها منتجات
+      const bootstrapUsedCats = new Set(
+        (allBootstrapProducts as any[])
+          .filter((p: any) => p.isAvailable !== false && p.category)
+          .map((p: any) => (p.category as string).trim().toLowerCase())
+      );
+      const categories = (allCategories as any[]).filter((c: any) =>
+        c.isActive !== false && bootstrapUsedCats.has((c.name as string).trim().toLowerCase())
+      );
 
       // إثراء طرق الدفع بالمستندات (نفس سلوك /api/payment-methods)
       const paymentMethods = await Promise.all(
