@@ -259,25 +259,33 @@ export default function CartPage() {
       }
     },
     onError: (error: any) => {
-      const raw = error?.message || '';
-      const serverMsg = raw.includes(':') ? raw.split(':').slice(1).join(':').trim() : raw;
       let displayMsg = "يرجى المحاولة مرة أخرى";
       let errorCode = "";
-      
+
       try {
-        const parsed = JSON.parse(serverMsg);
+        // throwIfResNotOk يرمي: "${status}: ${text}" حيث text هو JSON string
+        const raw = error?.message || '';
+        // نستخرج الجزء بعد أول ":"
+        const colonIdx = raw.indexOf(':');
+        const jsonPart = colonIdx >= 0 ? raw.slice(colonIdx + 1).trim() : raw;
+        const parsed = JSON.parse(jsonPart);
         displayMsg = parsed.error || parsed.message || displayMsg;
         errorCode = parsed.code || "";
       } catch {
-        if (serverMsg) displayMsg = serverMsg;
+        // إذا فشل التحليل نعرض الرسالة كما هي
+        const raw = error?.message || '';
+        if (raw) {
+          const colonIdx = raw.indexOf(':');
+          displayMsg = colonIdx >= 0 ? raw.slice(colonIdx + 1).trim() : raw;
+        }
       }
-      
+
       if (errorCode === "APP_CLOSED") {
         setAppClosedMessage(displayMsg);
         setShowAppClosedOverlay(true);
         return;
       }
-      
+
       toast({ title: "خطأ في تأكيد الطلب", description: displayMsg, variant: "destructive" });
     },
   });
