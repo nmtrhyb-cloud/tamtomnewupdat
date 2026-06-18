@@ -464,6 +464,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       items: [
         { icon: TrendingUp, label: 'الإيرادات والتوزيع', path: '/admin/financial-reports', permission: 'view_reports' },
         { icon: Star, label: 'التقييمات', path: '/admin/ratings', permission: 'view_reports' },
+        { icon: Activity, label: 'سجل أنشطة المسؤولين', path: '/admin/activity-logs', permission: 'view_reports' },
       ].filter(item => hasPermission(item.permission))
     },
     {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock, AlertTriangle } from 'lucide-react'; 
+import { useState, useEffect, useMemo } from 'react';
+import { Minus, Plus, Trash2, ShoppingBag, X, MapPin, Loader2, Calendar, Clock, AlertTriangle, Tag, CheckCircle, XCircle } from 'lucide-react'; 
 import { useCart } from '../context/CartContext';
 import { useUserLocation as useGeoLocation } from '../context/LocationContext';
 import { GoogleMapsLocationPicker, LocationData } from './GoogleMapsLocationPicker';
@@ -43,6 +43,12 @@ export function Cart({ isOpen, onClose }: CartProps) {
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
+  // حالة الكوبون
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponResult, setCouponResult] = useState<{ valid: boolean; message?: string; coupon?: any } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   const getScheduleSlots = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -56,12 +62,11 @@ export function Cart({ isOpen, onClose }: CartProps) {
     ];
   };
 
-  const paymentMethods = [
-    { id: 'cash', name: 'نقداً عند الاستلام', icon: '💵' },
-    { id: 'card', name: 'بطاقة دفع', icon: '💳' },
-    { id: 'wallet', name: 'المحفظة', icon: '👛' },
-    { id: 'online', name: 'دفع إلكتروني', icon: '🌐' }
-  ];
+  // طلب طرق الدفع من الخادم
+  const { data: apiPaymentMethods = [] } = useQuery<any[]>({
+    queryKey: ['/api/payment-methods'],
+    enabled: showCheckout,
+  });
 
   // طلب الموقع تلقائياً عند فتح السلة
   useEffect(() => {
@@ -90,6 +95,86 @@ export function Cart({ isOpen, onClose }: CartProps) {
 
   const getSetting = (key: string, def = '') => 
     uiSettings?.find((s: any) => s.key === key)?.value || def;
+
+  // إعدادات طرق الدفع والكوبون
+  const showCashPayment = getSetting('show_cash_payment', 'true') !== 'false';
+  const showPaymentCards = getSetting('show_payment_cards', 'true') !== 'false';
+  const showBankTransfer = getSetting('show_bank_transfer', 'false') === 'true';
+  const showCouponBox = getSetting('show_coupon_box', 'true') !== 'false';
+
+  // بناء قائمة طرق الدفع ديناميكياً
+  const paymentMethods = useMemo(() => {
+    const methods: { id: string; name: string; icon: string }[] = [];
+    if (showCashPayment) {
+      methods.push({ id: 'cash', name: 'نقداً عند الاستلام', icon: '💵' });
+    }
+    if (showPaymentCards) {
+      if (apiPaymentMethods.length > 0) {
+        const iconMap: Record<string, string> = {
+          mada: '🏦', stc_pay: '📱', apple_pay: '🍎', visa: '💳',
+          mastercard: '💳', tabby: '📊', tamara: '📈', wallet: '👛', online: '🌐', card: '💳',
+        };
+        apiPaymentMethods
+          .filter((m: any) => m.isActive && m.type !== 'cash' && m.type !== 'bank_transfer')
+          .forEach((m: any) => {
+            methods.push({
+              id: m.provider || m.type || m.id,
+              name: m.name || m.provider,
+              icon: iconMap[m.provider] || iconMap[m.type] || '💳',
+            });
+          });
+      } else {
+        methods.push({ id: 'card', name: 'بطاقة دفع', icon: '💳' });
+        methods.push({ id: 'wallet', name: 'المحفظة', icon: '👛' });
+        methods.push({ id: 'online', name: 'دفع إلكتروني', icon: '🌐' });
+      }
+    }
+    if (showBankTransfer) {
+      methods.push({ id: 'bank_transfer', name: 'تحويل بنكي', icon: '🏛️' });
+    }
+    return methods;
+  }, [apiPaymentMethods, showCashPayment, showPaymentCards, showBankTransfer]);
+
+  // عند تغيير طرق الدفع، تحقق أن الطريقة المختارة لا تزال متاحة
+  useEffect(() => {
+    if (paymentMethods.length > 0 && !paymentMethods.find(m => m.id === customerInfo.paymentMethod)) {
+      setCustomerInfo(prev => ({ ...prev, paymentMethod: paymentMethods[0].id }));
+    }
+  }, [paymentMethods]);
+
+  // دالة التحقق من الكوبون
+  const handleValidateCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setIsValidatingCoupon(true);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim(), orderValue: state.subtotal }),
+      });
+      const data = await res.json();
+      setCouponResult(data);
+      if (data.valid) {
+        setCouponDiscount(data.discount || 0);
+        toast({ title: '✅ تم تطبيق الكوبون', description: `وفرت ${formatCurrency(data.discount || 0)}` });
+      } else {
+        setCouponDiscount(0);
+        toast({ title: 'كوبون غير صالح', description: data.message || 'تعذر التحقق من الكوبون', variant: 'destructive' });
+      }
+    } catch {
+      setCouponDiscount(0);
+      setCouponResult({ valid: false, message: 'خطأ في الاتصال' });
+      toast({ title: 'خطأ', description: 'تعذر الاتصال بالخادم', variant: 'destructive' });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode('');
+    setCouponDiscount(0);
+    setCouponResult(null);
+  };
 
   const openingTime = getSetting('opening_time', '08:00');
   const closingTime = getSetting('closing_time', '23:00');
@@ -198,6 +283,8 @@ export function Cart({ isOpen, onClose }: CartProps) {
     }
   };
 
+  const finalTotal = Math.max(0, state.subtotal + deliveryFee - couponDiscount);
+
   const buildOrderData = (scheduled?: { date: string; time: string }) => ({
     customerName: customerInfo.name,
     customerPhone: customerInfo.phone,
@@ -209,7 +296,9 @@ export function Cart({ isOpen, onClose }: CartProps) {
     items: JSON.stringify(state.items),
     subtotal: state.subtotal,
     deliveryFee: deliveryFee,
-    totalAmount: state.subtotal + deliveryFee,
+    totalAmount: finalTotal,
+    couponCode: couponResult?.valid ? couponCode.trim() : undefined,
+    couponDiscount: couponDiscount > 0 ? couponDiscount : undefined,
     restaurantId: state.restaurantId,
     deliveryPreference: scheduled ? 'scheduled' : 'now',
     scheduledDate: scheduled?.date || null,
@@ -417,7 +506,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="text-xl font-black tracking-tighter">
-              <span className="text-[#ec3714]">الس</span><span className="text-[#d32f2f]">ريع</span>
+              <span className="text-[#ec3714]">طم</span><span className="text-[#d32f2f]">طوم</span>
             </div>
             <h2 className="text-lg font-bold"> - السلة</h2>
             {state.items.length > 0 && (
@@ -548,10 +637,16 @@ export function Cart({ isOpen, onClose }: CartProps) {
                         </div>
                       )}
                     </div>
+                    {couponDiscount > 0 && (
+                      <div className="flex justify-between text-green-600 font-bold">
+                        <span className="flex items-center gap-1"><Tag size={14} /> خصم الكوبون:</span>
+                        <span>- {formatCurrency(couponDiscount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>المجموع الكلي:</span>
                       <span className="text-red-500">
-                        {formatCurrency(selectedLocation ? state.subtotal + deliveryFee : state.subtotal)}
+                        {formatCurrency(selectedLocation ? finalTotal : Math.max(0, state.subtotal - couponDiscount))}
                       </span>
                     </div>
                   </div>
@@ -651,6 +746,54 @@ export function Cart({ isOpen, onClose }: CartProps) {
                       </Button>
                     )}
                   </div>
+
+                  {/* حقل الكوبون */}
+                  {showCouponBox && (
+                    <div>
+                      <h3 className="font-medium mb-2 text-sm flex items-center gap-1">
+                        <Tag size={14} className="text-primary" />
+                        كوبون الخصم
+                      </h3>
+                      {couponResult?.valid ? (
+                        <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle size={18} className="text-green-600" />
+                            <div>
+                              <p className="text-xs font-black text-green-700">{couponCode.toUpperCase()}</p>
+                              <p className="text-[10px] text-green-600">وفرت {formatCurrency(couponDiscount)}</p>
+                            </div>
+                          </div>
+                          <button onClick={removeCoupon} className="text-red-400 hover:text-red-600 p-1">
+                            <XCircle size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="أدخل كود الخصم"
+                            value={couponCode}
+                            onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponResult(null); }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleValidateCoupon()}
+                            className="flex-1 p-3 border rounded-xl text-sm focus:border-primary outline-none"
+                          />
+                          <Button
+                            onClick={handleValidateCoupon}
+                            disabled={isValidatingCoupon || !couponCode.trim()}
+                            size="sm"
+                            className="bg-primary text-white rounded-xl px-4 py-3 h-auto"
+                          >
+                            {isValidatingCoupon ? <Loader2 size={14} className="animate-spin" /> : 'تطبيق'}
+                          </Button>
+                        </div>
+                      )}
+                      {couponResult && !couponResult.valid && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <XCircle size={12} /> {couponResult.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* طرق الدفع */}
                   <div>
