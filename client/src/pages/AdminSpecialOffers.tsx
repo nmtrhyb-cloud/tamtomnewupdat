@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Plus, Edit, Trash2, Save, X, Percent, Tag, Store } from 'lucide-react';
+import { ArrowRight, Plus, Edit, Trash2, Save, X, Percent, Tag, Store, ShoppingBag } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ const EMPTY_FORM = {
   isActive: true,
   restaurantId: '',
   categoryId: '',
+  menuItemId: '',
 };
 
 export function AdminSpecialOffers() {
@@ -63,6 +64,16 @@ export function AdminSpecialOffers() {
     },
   });
   const activeCategories = categoriesData.filter((c) => c.isActive);
+
+  // قائمة المنتجات لربط العرض بمنتج مباشر
+  const { data: menuItemsData = [] } = useQuery<any[]>({
+    queryKey: ['/api/products'],
+    queryFn: async () => {
+      const res = await fetch('/api/products');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   // قائمة المتاجر (اختيارية)
   const { data: restaurantsResp } = useQuery<{ restaurants: Restaurant[] } | Restaurant[]>({
@@ -178,6 +189,7 @@ export function AdminSpecialOffers() {
       isActive: formData.isActive,
       restaurantId: formData.restaurantId || null,
       categoryId: formData.categoryId || null,
+      menuItemId: formData.menuItemId || null,
     };
 
     if (editingOffer) {
@@ -209,6 +221,7 @@ export function AdminSpecialOffers() {
       isActive: offer.isActive ?? true,
       restaurantId: offer.restaurantId || '',
       categoryId: offer.categoryId || '',
+      menuItemId: offer.menuItemId || '',
     });
     setShowAddForm(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -379,6 +392,35 @@ export function AdminSpecialOffers() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* المنتج المرتبط — لزر "تسوق الآن" */}
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <ShoppingBag className="h-4 w-4 text-green-600" />
+                    ربط بمنتج (اختياري)
+                  </Label>
+                  <Select
+                    value={formData.menuItemId || 'none'}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, menuItemId: v === 'none' ? '' : v })
+                    }
+                  >
+                    <SelectTrigger data-testid="select-menu-item">
+                      <SelectValue placeholder="بدون منتج مرتبط" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— بدون منتج (عرض ترويجي فقط) —</SelectItem>
+                      {menuItemsData.map((item: any) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name} — {parseFloat(item.price).toFixed(0)} ريال
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    عند تحديد منتج، سيُضاف مباشرةً للسلة عند النقر على "تسوق الآن".
+                  </p>
                 </div>
               </div>
 

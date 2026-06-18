@@ -106,7 +106,8 @@ export default function Home() {
                         className="md:size-lg w-fit bg-white text-black hover:bg-primary hover:text-white transition-all duration-500 rounded-xl px-6 md:px-10 text-xs md:text-lg font-black h-10 md:h-16 shadow-xl hover:shadow-primary/40 group/btn italic uppercase"
                         onClick={() => {
                           if (offer.menuItemId) {
-                            setLocation(`/category/العروض#product-${offer.menuItemId}`);
+                            // الانتقال مباشرةً لصفحة المنتج حيث يمكن إضافته للسلة
+                            setLocation(`/product/${offer.menuItemId}`);
                           } else if (offer.categoryId) {
                             const cat = categories?.find(c => c.id === offer.categoryId);
                             if (cat) {
