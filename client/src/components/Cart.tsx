@@ -209,7 +209,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
     const abortController = new AbortController();
 
     const fetchDeliveryFee = async () => {
-      if (!selectedLocation?.lat || !selectedLocation?.lng || !state.restaurantId) {
+      if (!selectedLocation?.lat || !selectedLocation?.lng || state.items.length === 0) {
         return;
       }
 
@@ -223,7 +223,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
           body: JSON.stringify({
             customerLat: selectedLocation.lat,
             customerLng: selectedLocation.lng,
-            restaurantId: state.restaurantId,
+            restaurantId: state.restaurantId || null,
             orderSubtotal: state.subtotal || 0
           }),
           signal: abortController.signal
@@ -254,7 +254,7 @@ export function Cart({ isOpen, onClose }: CartProps) {
       isMounted = false;
       abortController.abort();
     };
-  }, [selectedLocation?.lat, selectedLocation?.lng, state.restaurantId, state.subtotal]);
+  }, [selectedLocation?.lat, selectedLocation?.lng, state.items.length, state.subtotal]);
 
   const getRestaurantLocation = () => {
     const r = restaurant as any;

@@ -81,20 +81,27 @@ export default function MenuItemCard({
       return;
     }
 
-    // ← إصلاح: عند الضغط على عرض banner نضيف المنتج المرتبط مباشرةً للسلة
+    // عند الضغط على عرض banner نضيف المنتج المرتبط مباشرةً للسلة
     if (item.isBannerOffer) {
       if (item.menuItemId) {
         try {
           const res = await fetch(`/api/products/${item.menuItemId}`);
           if (res.ok) {
             const product = await res.json();
-            await addItem(product);
+            if (product && product.id) {
+              await addItem(product);
+            } else {
+              setLocation(`/product/${item.menuItemId}`);
+            }
           } else {
             setLocation(`/product/${item.menuItemId}`);
           }
         } catch {
           setLocation(`/product/${item.menuItemId}`);
         }
+      } else {
+        // لا يوجد منتج مرتبط — نفتح صفحة العروض
+        setLocation('/category/العروض');
       }
       return;
     }
