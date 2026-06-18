@@ -1,22 +1,15 @@
 /**
  * خدمة حساب رسوم التوصيل
  * Delivery Fee Calculation Service
- * 
- * تدعم طرق متعددة لحساب رسوم التوصيل:
- * 1. رسوم ثابتة (fixed)
- * 2. حسب المسافة (per_km)
- * 3. حسب المناطق (zone_based)
- * 4. إعدادات المطعم الخاصة (restaurant_custom)
  */
 
 import { storage } from "../storage";
 
-// ثوابت افتراضية (بالريال السعودي)
-const DEFAULT_BASE_FEE = 5;     // 5 ريال رسوم أساسية
-const DEFAULT_PER_KM_FEE = 2;   // 2 ريال لكل كيلومتر
-const DEFAULT_MIN_FEE = 3;      // 3 ريال حد أدنى
-const DEFAULT_MAX_FEE = 50;     // 50 ريال حد أقصى
-const EARTH_RADIUS_KM = 6371; // نصف قطر الأرض بالكيلومتر
+const DEFAULT_BASE_FEE = 5;
+const DEFAULT_PER_KM_FEE = 2;
+const DEFAULT_MIN_FEE = 3;
+const DEFAULT_MAX_FEE = 50;
+const EARTH_RADIUS_KM = 6371;
 
 export interface DeliveryLocation {
   lat: number;
@@ -49,7 +42,6 @@ export interface DeliveryFeeSettings {
 
 /**
  * حساب المسافة بين نقطتين باستخدام صيغة Haversine
- * Calculate distance between two points using Haversine formula
  */
 export function calculateDistance(
   point1: DeliveryLocation,
@@ -60,16 +52,13 @@ export function calculateDistance(
   const deltaLat = toRadians(point2.lat - point1.lat);
   const deltaLng = toRadians(point2.lng - point1.lng);
 
-  const a = 
+  const a =
     Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
     Math.cos(lat1Rad) * Math.cos(lat2Rad) *
     Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-  
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
   const distance = EARTH_RADIUS_KM * c;
-  
-  // تقريب إلى رقمين عشريين
   return Math.round(distance * 100) / 100;
 }
 
@@ -86,9 +75,9 @@ export function isPointInPolygon(point: DeliveryLocation, polygon: DeliveryLocat
     const xi = point.lat, yi = point.lng;
     const x1 = polygon[i].lat, y1 = polygon[i].lng;
     const x2 = polygon[j].lat, y2 = polygon[j].lng;
-    
+
     const intersect = ((y1 > yi) !== (y2 > yi)) &&
-        (xi < (x2 - x1) * (yi - y1) / (y2 - y1) + x1);
+      (xi < (x2 - x1) * (yi - y1) / (y2 - y1) + x1);
     if (intersect) isInside = !isInside;
   }
   return isInside;
@@ -96,24 +85,18 @@ export function isPointInPolygon(point: DeliveryLocation, polygon: DeliveryLocat
 
 /**
  * تقدير وقت التوصيل بناءً على المسافة
- * Estimate delivery time based on distance
  */
 export function estimateDeliveryTime(distanceKm: number): string {
-  // متوسط سرعة التوصيل: 30 كم/ساعة في المدينة
   const avgSpeedKmH = 30;
-  // وقت التحضير المتوسط: 15 دقيقة
   const prepTimeMinutes = 15;
-  
+
   const travelTimeMinutes = (distanceKm / avgSpeedKmH) * 60;
   const totalTimeMinutes = Math.ceil(prepTimeMinutes + travelTimeMinutes);
-  
-  // إضافة هامش زمني
+
   const minTime = totalTimeMinutes;
-  const maxTime = Math.ceil(totalTimeMinutes * 1.3); // +30% هامش
-  
-  if (maxTime <= 30) {
-    return `${minTime}-${maxTime} دقيقة`;
-  } else if (maxTime <= 60) {
+  const maxTime = Math.ceil(totalTimeMinutes * 1.3);
+
+  if (maxTime <= 60) {
     return `${minTime}-${maxTime} دقيقة`;
   } else {
     const minHours = Math.floor(minTime / 60);
@@ -126,11 +109,10 @@ export function estimateDeliveryTime(distanceKm: number): string {
 }
 
 /**
- * جلب إعدادات رسوم التوصيل
+ * جلب إعدادات رسوم التوصيل من قاعدة البيانات
  */
 async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
   try {
-    // جلب الإعدادات العامة فقط (الموقع يُجلب من المطعم مباشرة)
     const globalSettings = await storage.getDeliveryFeeSettings();
     if (globalSettings && globalSettings.type) {
       return {
@@ -143,10 +125,9 @@ async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
       };
     }
   } catch (error) {
-    console.error('Error fetching delivery fee settings:', error);
+    console.error('[DeliveryFee] Error fetching settings:', error);
   }
 
-  // إعدادات افتراضية
   return {
     type: 'per_km',
     baseFee: DEFAULT_BASE_FEE,
@@ -158,58 +139,90 @@ async function getDeliveryFeeSettings(): Promise<DeliveryFeeSettings> {
 }
 
 /**
+ * جلب موقع المتجر الرئيسي من إعدادات النظام
+ * يُستخدم كاحتياط عندما لا يكون للمطعم إحداثيات
+ */
+async function getSystemStoreLocation(): Promise<DeliveryLocation | null> {
+  try {
+    const allSettings = await storage.getUiSettings();
+    const settingsMap = new Map(allSettings.map((s: any) => [s.key, s.value]));
+    const storeLat = settingsMap.get('store_lat');
+    const storeLng = settingsMap.get('store_lng');
+
+    if (storeLat && storeLng) {
+      const lat = parseFloat(storeLat);
+      const lng = parseFloat(storeLng);
+      if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+        return { lat, lng };
+      }
+    }
+  } catch (error) {
+    console.error('[DeliveryFee] Error fetching system store location:', error);
+  }
+  return null;
+}
+
+/**
  * حساب رسوم التوصيل الكاملة
- * Calculate complete delivery fee
  */
 export async function calculateDeliveryFee(
   customerLocation: DeliveryLocation,
   restaurantId: string | null,
   orderSubtotal: number
 ): Promise<DeliveryFeeResult> {
-  // 1. جلب جميع البيانات المطلوبة بشكل متوازي للأداء الأمثل
-  const [geoZones, deliveryRules, discounts, deliverySettings, restaurant] = await Promise.all([
+  // جلب جميع البيانات بشكل متوازٍ
+  const [geoZones, deliveryRules, discounts, deliverySettings, restaurant, systemStoreLocation] = await Promise.all([
     storage.getGeoZones(),
     storage.getDeliveryRules(),
     storage.getDeliveryDiscounts(),
     getDeliveryFeeSettings(),
-    restaurantId ? storage.getRestaurant(restaurantId) : Promise.resolve(null)
+    restaurantId ? storage.getRestaurant(restaurantId) : Promise.resolve(null),
+    getSystemStoreLocation(),
   ]);
 
   const activeGeoZones = geoZones.filter(z => z.isActive);
   const activeRules = deliveryRules.filter(r => r.isActive);
   const activeDiscounts = discounts.filter(d => d.isActive);
 
-  // 2. تحديد موقع المتجر: يُستخدم موقع المطعم المحدد في قاعدة البيانات مباشرةً
-  let storeLocation: DeliveryLocation = { lat: 0, lng: 0 };
-  
+  // تحديد موقع المتجر بالأولوية:
+  // 1. موقع المطعم المحدد في قاعدة البيانات
+  // 2. موقع المتجر الرئيسي من إعدادات النظام (store_lat/store_lng)
+  // 3. إذا لم يوجد شيء → مسافة = 0
+  let storeLocation: DeliveryLocation | null = null;
+
   if (restaurant && restaurant.latitude && restaurant.longitude) {
-    // الأولوية القصوى: موقع المطعم المحدد في إدارة المتاجر
-    storeLocation = {
-      lat: parseFloat(restaurant.latitude as string),
-      lng: parseFloat(restaurant.longitude as string)
-    };
+    const lat = parseFloat(restaurant.latitude as string);
+    const lng = parseFloat(restaurant.longitude as string);
+    if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+      storeLocation = { lat, lng };
+    }
+  }
+
+  if (!storeLocation && systemStoreLocation) {
+    storeLocation = systemStoreLocation;
   }
 
   // حساب المسافة
-  const distance = storeLocation.lat !== 0 ? calculateDistance(customerLocation, storeLocation) : 0;
+  const distance = storeLocation
+    ? calculateDistance(customerLocation, storeLocation)
+    : 0;
   const estimatedTime = estimateDeliveryTime(distance);
 
-  // 4. تحديد المنطقة الجغرافية (Geo-Zone)
+  // تحديد المنطقة الجغرافية (Geo-Zone)
   let matchingGeoZoneId: string | null = null;
   for (const zone of activeGeoZones) {
     try {
       const polygon = JSON.parse(zone.coordinates);
       if (isPointInPolygon(customerLocation, polygon)) {
         matchingGeoZoneId = zone.id;
-        break; // نأخذ أول منطقة مطابقة
+        break;
       }
     } catch (e) {
-      console.error(`Error parsing coordinates for zone ${zone.name}`, e);
+      console.error(`[DeliveryFee] Error parsing geo-zone ${zone.name}:`, e);
     }
   }
 
-  // 5. تطبيق القواعد الديناميكية (Dynamic Rules)
-  // القواعد مرتبة حسب الأولوية (Priority) من الأعلى إلى الأقل
+  // تطبيق القواعد الديناميكية
   let appliedFee: number | null = null;
   let appliedRuleId: string | undefined;
 
@@ -231,11 +244,11 @@ export async function calculateDeliveryFee(
     if (matches) {
       appliedFee = parseFloat(rule.fee);
       appliedRuleId = rule.id;
-      break; // نطبق أول قاعدة مطابقة حسب الأولوية
+      break;
     }
   }
 
-  // 6. استخدام الحساب الافتراضي إذا لم تطبق أي قاعدة بناءً على نوع الحساب المختار
+  // الحساب الافتراضي إذا لم تطبق أي قاعدة
   if (appliedFee === null) {
     switch (deliverySettings.type) {
       case 'fixed':
@@ -251,7 +264,7 @@ export async function calculateDeliveryFee(
     }
   }
 
-  // 7. تطبيق التوصيل المجاني والخصومات
+  // تطبيق التوصيل المجاني والخصومات
   let isFreeDelivery = false;
   let freeDeliveryReason: string | undefined;
   let appliedDiscountId: string | undefined;
@@ -287,16 +300,18 @@ export async function calculateDeliveryFee(
     }
   }
 
-  // التأكد من أن الرسوم لا تقل عن صفر ولا تتجاوز الحد الأقصى
-  appliedFee = Math.max(0, Math.min(deliverySettings.maxFee, appliedFee));
-  appliedFee = Math.round(appliedFee * 100) / 100;
+  // تطبيق الحدود الدنيا والقصوى
+  if (!isFreeDelivery) {
+    appliedFee = Math.max(deliverySettings.minFee, Math.min(deliverySettings.maxFee, appliedFee));
+  }
+  appliedFee = Math.max(0, Math.round(appliedFee * 100) / 100);
 
   return {
     fee: appliedFee,
     distance,
     estimatedTime,
     feeBreakdown: {
-      baseFee: appliedFee === 0 && isFreeDelivery ? 0 : appliedFee,
+      baseFee: isFreeDelivery ? 0 : appliedFee,
       distanceFee: 0,
       totalBeforeLimit: appliedFee
     },
@@ -313,10 +328,9 @@ export async function calculateDeliveryFee(
 async function getZoneBasedFee(distance: number): Promise<number> {
   try {
     const zones = await storage.getDeliveryZones();
-    
+
     if (zones && zones.length > 0) {
-      // البحث عن المنطقة المناسبة
-      const matchingZone = zones.find(zone => 
+      const matchingZone = zones.find(zone =>
         distance >= parseFloat(zone.minDistance || '0') &&
         distance <= parseFloat(zone.maxDistance || '999')
       );
@@ -326,16 +340,14 @@ async function getZoneBasedFee(distance: number): Promise<number> {
       }
     }
   } catch (error) {
-    console.error('Error fetching delivery zones:', error);
+    console.error('[DeliveryFee] Error fetching delivery zones:', error);
   }
 
-  // رسوم افتراضية إذا لم توجد منطقة مطابقة
   return DEFAULT_BASE_FEE + (distance * DEFAULT_PER_KM_FEE);
 }
 
 /**
  * حساب رسوم التوصيل السريع
- * Quick delivery fee calculation (simplified)
  */
 export function calculateQuickDeliveryFee(
   distanceKm: number,

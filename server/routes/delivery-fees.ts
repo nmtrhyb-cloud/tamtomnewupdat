@@ -32,10 +32,11 @@ router.post("/calculate", async (req, res) => {
     const lat = parseFloat(customerLat);
     const lng = parseFloat(customerLng);
     const subtotal = parseFloat(orderSubtotal || '0');
-    
+
+    // دقة أعلى (4 خانات عشرية ≈ 11م) لضمان صحة حساب المناطق الجغرافية
     const cacheKey = deliveryFeeCache.generateKey(
-      Math.round(lat * 1000),
-      Math.round(lng * 1000),
+      Math.round(lat * 10000),
+      Math.round(lng * 10000),
       restaurantId,
       Math.round(subtotal)
     );
@@ -121,14 +122,10 @@ router.get("/settings", async (req, res) => {
 // إنشاء أو تحديث إعدادات رسوم التوصيل (للمدير)
 router.post("/settings", async (req, res) => {
   try {
-    console.log('📥 تم استقبال طلب حفظ إعدادات التوصيل:', JSON.stringify(req.body, null, 2));
-    
     const coercedData = coerceRequestData(req.body);
-    console.log('🔄 البيانات بعد التحويل:', JSON.stringify(coercedData, null, 2));
-    
+
     const settingsSchema = z.object({
-      type: z.enum(['fixed', 'per_km', 'zone_based', 'restaurant_custom'])
-        .refine(val => val, { message: 'نوع الحساب مطلوب' }),
+      type: z.enum(['fixed', 'per_km', 'zone_based', 'restaurant_custom']),
       baseFee: z.string().optional(),
       perKmFee: z.string().optional(),
       minFee: z.string().optional(),
@@ -138,26 +135,12 @@ router.post("/settings", async (req, res) => {
     });
 
     const validatedData = settingsSchema.parse(coercedData);
-    console.log('✅ البيانات تم التحقق منها بنجاح:', JSON.stringify(validatedData, null, 2));
-    
-    // التحقق من صحة القيم الرقمية
+
     const validateNumber = (value: string | undefined, fieldName: string): string => {
-      if (!value || value === '') {
-        console.log(`⚠️ ${fieldName} فارغة - سيتم استخدام القيمة الافتراضية 0`);
-        return '0';
-      }
+      if (!value || value === '') return '0';
       const num = parseFloat(value);
-      if (isNaN(num)) {
-        const errorMsg = `❌ ${fieldName} = "${value}" ليست قيمة رقمية صحيحة`;
-        console.error(errorMsg);
-        throw new Error(errorMsg);
-      }
-      if (num < 0) {
-        const errorMsg = `❌ ${fieldName} يجب أن تكون قيمة موجبة أو صفر، القيمة المدخلة: ${num}`;
-        console.error(errorMsg);
-        throw new Error(errorMsg);
-      }
-      console.log(`✓ ${fieldName}: ${value} → ${num}`);
+      if (isNaN(num)) throw new Error(`${fieldName}: قيمة غير صحيحة "${value}"`);
+      if (num < 0) throw new Error(`${fieldName}: يجب أن تكون قيمة موجبة أو صفر`);
       return num.toString();
     };
 
@@ -170,108 +153,53 @@ router.post("/settings", async (req, res) => {
       freeDeliveryThreshold: validateNumber(validatedData.freeDeliveryThreshold, 'حد التوصيل المجاني'),
     };
 
-    console.log('🧹 البيانات بعد التنظيف:', JSON.stringify(sanitizedData, null, 2));
-
-    // التحقق من أن maxFee أكبر من أو يساوي minFee
     const minFeeNum = parseFloat(sanitizedData.minFee || '0');
     const maxFeeNum = parseFloat(sanitizedData.maxFee || '1000');
-    
-    console.log(`📊 التحقق من الحدود: minFee=${minFeeNum}, maxFee=${maxFeeNum}`);
-    
+
     if (maxFeeNum < minFeeNum) {
-      const errorMsg = `❌ الحد الأقصى (${maxFeeNum}) يجب أن يكون أكبر من أو يساوي الحد الأدنى (${minFeeNum})`;
-      console.error(errorMsg);
       return res.status(400).json({
         success: false,
         error: "بيانات غير صحيحة",
-        field: "maxFee",
-        message: errorMsg,
-        details: {
-          minFee: minFeeNum,
-          maxFee: maxFeeNum,
-          issue: "الحد الأقصى أقل من الحد الأدنى"
-        }
+        message: `الحد الأقصى (${maxFeeNum}) يجب أن يكون أكبر من أو يساوي الحد الأدنى (${minFeeNum})`
       });
     }
 
-    // التحقق من أن القيم معقولة
-    if (maxFeeNum > 100000) {
-      console.warn(`⚠️ تحذير: الحد الأقصى (${maxFeeNum}) يبدو مرتفعاً جداً`);
-    }
-    
-    // التحقق من وجود إعدادات سابقة
-    console.log(`🔍 البحث عن إعدادات سابقة للمطعم: ${sanitizedData.restaurantId || 'عام'}`);
     const existing = await storage.getDeliveryFeeSettings(sanitizedData.restaurantId);
-    
+
     if (existing) {
-      console.log(`📝 تحديث الإعدادات الموجودة: ${existing.id}`);
       const updated = await storage.updateDeliveryFeeSettings(existing.id, sanitizedData);
-      console.log(`✅ تم التحديث بنجاح`);
-      // مسح كاش رسوم التوصيل وإرسال broadcast للتحديث الفوري
       deliveryFeeCache.clear();
       broadcastSettingsChanged('delivery_fee_settings');
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: 'تم تحديث الإعدادات بنجاح',
-        settings: updated 
+        settings: updated
       });
     }
 
-    console.log(`✨ إنشاء إعدادات جديدة`);
     const newSettings = await storage.createDeliveryFeeSettings(sanitizedData);
-    console.log(`✅ تم الإنشاء بنجاح`);
-    // مسح كاش رسوم التوصيل وإرسال broadcast للتحديث الفوري
     deliveryFeeCache.clear();
     broadcastSettingsChanged('delivery_fee_settings');
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: 'تم حفظ الإعدادات بنجاح',
-      settings: newSettings 
+      settings: newSettings
     });
   } catch (error: any) {
-    console.error('💥 خطأ في حفظ إعدادات رسوم التوصيل:', error);
-    
+    console.error('[DeliveryFee] Error saving settings:', error.message);
+
     if (error instanceof z.ZodError) {
-      const errorDetails = error.errors.map(e => ({
-        field: e.path.join('.') || 'unknown',
-        message: e.message,
-        code: e.code
-      }));
-      console.error('❌ أخطاء Zod validation:', JSON.stringify(errorDetails, null, 2));
-      
       return res.status(400).json({
         success: false,
         error: "خطأ في البيانات المدخلة",
-        validationErrors: errorDetails,
-        hint: "تحقق من أن جميع الحقول تحتوي على قيم صحيحة"
-      });
-    }
-    
-    if (error.message && error.message.includes('يجب أن يكون')) {
-      return res.status(400).json({
-        success: false,
-        error: "خطأ في القيم المدخلة",
-        message: error.message,
-        hint: "تأكد من إدخال أرقام صحيحة في جميع الحقول"
+        validationErrors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
       });
     }
 
-    if (error.code === 'ECONNREFUSED') {
-      console.error('❌ عدم القدرة على الاتصال بقاعدة البيانات');
-      return res.status(500).json({
-        success: false,
-        error: "خطأ في الاتصال",
-        message: "تعذر الاتصال بقاعدة البيانات",
-        hint: "تأكد من أن خادم قاعدة البيانات يعمل"
-      });
-    }
-
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: "خطأ في حفظ الإعدادات",
-      message: error.message || "حدث خطأ غير متوقع",
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      hint: "تحقق من وحدة التحكم (Console) لمزيد من التفاصيل"
+      message: error.message || "حدث خطأ غير متوقع"
     });
   }
 });

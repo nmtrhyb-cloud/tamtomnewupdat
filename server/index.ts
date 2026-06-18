@@ -99,8 +99,15 @@ app.use((req, res, next) => {
     // ===== مؤقت تفعيل الطلبات المجدولة =====
     // كل دقيقة: ابحث عن طلبات scheduled موعدها خلال 30 دقيقة أو أقل وفعّلها
     setInterval(async () => {
+      // جلب جميع الطلبات مرة واحدة فقط ثم إعادة استخدامها في جميع الفحوصات
+      let allOrders: any[] = [];
       try {
-        const allOrders = await storage.getOrders();
+        allOrders = await storage.getOrders();
+      } catch (e) {
+        console.error('خطأ في جلب الطلبات للمؤقت:', e);
+      }
+
+      try {
         const scheduledOrders = allOrders.filter((o: any) => o.status === 'scheduled');
         
         const db = (storage as any).db;
@@ -202,15 +209,15 @@ app.use((req, res, next) => {
       } catch (e) { console.error('خطأ في مؤقت الطلبات المجدولة:', e); }
 
       // ===== تنبيه الطلبات التي مرّ عليها 15 دقيقة دون تعيين سائق =====
+      // نُعيد استخدام allOrders التي جلبناها أعلاه بدلاً من طلب قاعدة البيانات مجدداً
       try {
-        const allOrdersForAlert = await storage.getOrders();
         const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
         const alertedMap: Map<string, number> = ((globalThis as any).__unassignedAlerts ||= new Map());
         // تنظيف العناصر القديمة (أقدم من 24 ساعة)
         const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
         for (const [k, v] of alertedMap) if (v < dayAgo) alertedMap.delete(k);
 
-        const stale = allOrdersForAlert.filter((o: any) => {
+        const stale = allOrders.filter((o: any) => {
           if (o.driverId) return false;
           const status = String(o.status || '').toLowerCase();
           if (!['pending', 'confirmed', 'preparing', 'ready'].includes(status)) return false;
