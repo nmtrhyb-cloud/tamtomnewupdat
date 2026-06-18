@@ -12,8 +12,8 @@ import { useCart } from '../context/CartContext';
 import { useUserLocation as useCoordinates } from '../context/LocationContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import type { InsertOrder, Restaurant } from '@shared/schema';
-import { getAppStatus, getRestaurantStatus } from '@/utils/restaurantHours';
+import type { InsertOrder } from '@shared/schema';
+import { getAppStatus } from '@/utils/restaurantHours';
 import { formatCurrency } from '@/lib/utils';
 import AppClosedOverlay from '@/components/AppClosedOverlay';
 import ScheduledOrderDialog from '@/components/ScheduledOrderDialog';
@@ -38,13 +38,6 @@ export default function CartPage() {
   const [showScheduledDialog, setShowScheduledDialog] = useState(false);
   const [scheduledData, setScheduledData] = useState<{date: string, time: string} | null>(null);
 
-  const restaurantId = items[0]?.restaurantId;
-
-  const { data: restaurant } = useQuery<Restaurant>({
-    queryKey: ['/api/restaurants', restaurantId],
-    enabled: !!restaurantId,
-  });
-
   const { data: uiSettings } = useQuery<any[]>({
     queryKey: ['/api/ui-settings'],
   });
@@ -63,12 +56,7 @@ export default function CartPage() {
     return getAppStatus(openingTime, closingTime, storeStatus);
   }, [uiSettings]);
 
-  const restaurantStatus = useMemo(() => {
-    if (!restaurant) return null;
-    return getRestaurantStatus(restaurant);
-  }, [restaurant]);
-
-  const canPlaceOrder = appStatus.isOpen && (restaurantStatus === null || restaurantStatus.isOpen);
+  const canPlaceOrder = appStatus.isOpen;
 
   // إعدادات السلة من لوحة التحكم
   const showCouponBoxAlways = getSetting('show_coupon_box_always', 'true') !== 'false';
@@ -142,7 +130,6 @@ export default function CartPage() {
           const response = await apiRequest('POST', '/api/delivery-fees/calculate', {
             customerLat: userLocation.position.coords.latitude,
             customerLng: userLocation.position.coords.longitude,
-            restaurantId: restaurantId,
             orderSubtotal: subtotal
           });
           const result = await response.json();
@@ -167,7 +154,7 @@ export default function CartPage() {
     };
 
     calculateFee();
-  }, [userLocation.position, subtotal, restaurantId]);
+  }, [userLocation.position, subtotal]);
 
   // الكوبون
   const [couponCode, setCouponCode] = useState('');
@@ -292,16 +279,8 @@ export default function CartPage() {
 
   const handlePlaceOrder = () => {
     if (!canPlaceOrder) {
-      if (!appStatus.isOpen) {
-        setAppClosedMessage(appStatus.message);
-        setShowAppClosedOverlay(true);
-      } else {
-        toast({
-          title: "المطعم مغلق",
-          description: restaurantStatus?.message || 'المطعم مغلق حالياً، يرجى تجربة مطعم آخر أو المحاولة لاحقاً',
-          variant: "destructive",
-        });
-      }
+      setAppClosedMessage(appStatus.message);
+      setShowAppClosedOverlay(true);
       return;
     }
 
@@ -331,7 +310,6 @@ export default function CartPage() {
       deliveryFee: deliveryFee.toString(),
       total: finalTotal.toString(),
       totalAmount: finalTotal.toString(),
-      restaurantId: items[0]?.restaurantId || undefined,
       customerLocationLat: userLocation.position?.coords.latitude
         ? parseFloat(userLocation.position.coords.latitude.toFixed(8)).toString()
         : undefined,
@@ -613,7 +591,7 @@ export default function CartPage() {
                     {!appStatus.isOpen ? 'التطبيق مغلق حالياً' : 'المتجر مغلق حالياً'}
                   </p>
                   <p className="text-xs text-red-600 mt-0.5">
-                    {!appStatus.isOpen ? appStatus.message : restaurantStatus?.message}
+                    {appStatus.message}
                   </p>
                   <p className="text-xs text-red-500 mt-1">
                     أوقات العمل: {appStatus.openingTime} - {appStatus.closingTime}
@@ -680,7 +658,6 @@ export default function CartPage() {
               deliveryFee: deliveryFee.toString(),
               total: finalTotal.toString(),
               totalAmount: finalTotal.toString(),
-              restaurantId: items[0]?.restaurantId || undefined,
               customerLocationLat: userLocation.position?.coords.latitude
                 ? parseFloat(userLocation.position.coords.latitude.toFixed(8)).toString()
                 : undefined,

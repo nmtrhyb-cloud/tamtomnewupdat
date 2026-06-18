@@ -34,8 +34,8 @@ export default function ProductDetails() {
   });
 
   const { data: relatedProducts } = useQuery<MenuItem[]>({
-    queryKey: [`/api/restaurants/${product?.restaurantId}/menu`],
-    enabled: !!product?.restaurantId,
+    queryKey: [`/api/products`],
+    enabled: !!product,
   });
 
   if (isLoading) {
@@ -76,7 +76,7 @@ export default function ProductDetails() {
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
-      addItem(product, product.restaurantId || 'unknown', 'طمطوم');
+      addItem(product);
     }
     toast({
       title: "✅ تمت الإضافة للسلة",
@@ -292,8 +292,6 @@ export default function ProductDetails() {
                   <MenuItemCard 
                     key={item.id} 
                     item={item} 
-                    restaurantId={product.restaurantId || ''} 
-                    restaurantName="طمطوم"
                   />
                 ))}
             </div>

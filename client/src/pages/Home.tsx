@@ -239,8 +239,6 @@ export default function Home() {
             <MenuItemCard 
               key={product.id} 
               item={product} 
-              restaurantId={product.restaurantId || ''} 
-              restaurantName="طمطوم"
             />
           ))}
         </div>

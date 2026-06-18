@@ -2,9 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useMemo } from
 import { MenuItem } from '../../../shared/schema.js';
 import { useToast } from '@/hooks/use-toast';
 import { useUiSettings } from './UiSettingsContext';
-import { getAppStatus, canOrderFromRestaurant } from '../utils/restaurantHours';
-import { useQuery } from '@tanstack/react-query';
-import type { Restaurant } from '../../../shared/schema.js';
+import { getAppStatus } from '../utils/restaurantHours';
 
 export interface CartItem extends MenuItem {
   quantity: number;
@@ -13,8 +11,6 @@ export interface CartItem extends MenuItem {
 
 interface CartState {
   items: CartItem[];
-  restaurantId?: string;
-  restaurantName?: string;
   total: number;
   subtotal: number;
   deliveryFee: number;
@@ -22,7 +18,7 @@ interface CartState {
 }
 
 type CartAction =
-  | { type: 'ADD_ITEM'; item: MenuItem; restaurantId: string; restaurantName: string }
+  | { type: 'ADD_ITEM'; item: MenuItem }
   | { type: 'REMOVE_ITEM'; itemId: string }
   | { type: 'UPDATE_QUANTITY'; itemId: string; quantity: number }
   | { type: 'CLEAR_CART' }
@@ -41,14 +37,6 @@ const initialState: CartState = {
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case 'ADD_ITEM': {
-      // إذا كان المطعم مختلفاً، امسح السلة
-      if (state.restaurantId && state.restaurantId !== action.restaurantId) {
-        if (!confirm('إضافة عناصر من مطعم آخر سيمسح السلة الحالية. هل تريد المتابعة؟')) {
-          return state;
-        }
-        state = { ...initialState };
-      }
-
       const existingItem = state.items.find(item => item.id === action.item.id);
       let newItems;
 
@@ -68,8 +56,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items: newItems,
-        restaurantId: action.restaurantId,
-        restaurantName: action.restaurantName,
         subtotal,
         total,
       };
@@ -85,8 +71,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         items: newItems,
         subtotal,
         total,
-        restaurantId: newItems.length === 0 ? undefined : state.restaurantId,
-        restaurantName: newItems.length === 0 ? undefined : state.restaurantName,
       };
     }
 
@@ -145,10 +129,8 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return initialState;
 
     case 'RESTORE_CART': {
-      // Restore the complete cart state from localStorage
       return {
         ...action.cartState,
-        // Recalculate totals to ensure consistency
         subtotal: action.cartState.items.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0),
         total: action.cartState.items.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0) + action.cartState.deliveryFee,
       };
@@ -161,7 +143,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 interface CartContextType {
   state: CartState;
-  addItem: (item: MenuItem, restaurantId: string, restaurantName: string) => Promise<void>;
+  addItem: (item: MenuItem) => Promise<void>;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   addNotes: (itemId: string, notes: string) => void;
@@ -186,27 +168,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return getAppStatus(openingTime, closingTime, storeStatus, closeMessage);
   }, [getSetting]);
 
-  // هل خدمة الطلبات المؤجلة عند الإغلاق مفعّلة من لوحة التحكم؟
   const allowScheduledWhenClosed = useMemo(() => {
-    // دعم المفتاحين القديم والجديد للتوافق مع البيانات المخزنة
     const val = getSetting('allow_scheduled_orders_when_closed');
     if (val !== '') return val !== 'false';
     return getSetting('enable_scheduled_orders') !== 'false';
   }, [getSetting]);
 
-  // حفظ السلة في localStorage
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(state));
   }, [state]);
 
-  // تحميل السلة من localStorage
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
       try {
         const cartData = JSON.parse(savedCart);
         if (cartData.items?.length > 0) {
-          // استخدام RESTORE_CART لحفظ الحالة بالكامل
           dispatch({
             type: 'RESTORE_CART',
             cartState: cartData
@@ -214,16 +191,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
-        localStorage.removeItem('cart'); // إزالة البيانات المعطوبة
+        localStorage.removeItem('cart');
       }
     }
   }, []);
 
-  const addItem = async (item: MenuItem, restaurantId: string, restaurantName: string) => {
-    // 1. فحص حالة التطبيق — إذا كان المتجر مغلقاً
+  const addItem = async (item: MenuItem) => {
     if (!appStatus.isOpen) {
       if (!allowScheduledWhenClosed) {
-        // خدمة الطلبات المؤجلة معطّلة → منع الإضافة كلياً
         toast({
           title: "🔴 المتجر مغلق حالياً",
           description: appStatus.message
@@ -235,8 +210,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // خدمة الطلبات المؤجلة مفعّلة → السماح بالإضافة مع إشعار تنبيهي
-      dispatch({ type: 'ADD_ITEM', item, restaurantId, restaurantName });
+      dispatch({ type: 'ADD_ITEM', item });
       toast({
         title: "📅 تمت الإضافة — سيُجدَّل طلبك",
         description: `المتجر مغلق حالياً. "${item.name}" في سلتك وسيُرسل كطلب مجدول. يفتح المتجر الساعة ${appStatus.openingTime}`,
@@ -245,9 +219,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 2. إضافة العنصر — المتجر مفتوح (فحص حالة المطعم يتم عبر disabled prop في الواجهة)
     const existingItem = state.items.find(cartItem => cartItem.id === item.id);
-    dispatch({ type: 'ADD_ITEM', item, restaurantId, restaurantName });
+    dispatch({ type: 'ADD_ITEM', item });
 
     if (existingItem) {
       toast({

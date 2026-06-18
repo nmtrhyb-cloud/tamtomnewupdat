@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Save, Settings, Eye, Image as ImageIcon, Smartphone, Truck, 
   MessageCircle, Phone, Share2, Lock, ShoppingCart, Star, Bell,
-  ChevronDown, ChevronRight, Hash, Bike, Clock, AlertCircle, Store
+  ChevronDown, ChevronRight, Hash, Bike, Clock, AlertCircle, Store,
+  FileText, Instagram, Facebook
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
@@ -235,6 +236,7 @@ export default function AdminUiSettings() {
     store_basic: true,
     store_delivery: true,
     store_notifications: true,
+    receipt_settings: true,
   });
 
   const { data: uiSettings, isLoading } = useQuery<UiSettings[]>({
@@ -818,6 +820,30 @@ export default function AdminUiSettings() {
               <SettingRow label="إشعارات تحديث حالة الطلب" {...rowProps('notify_customers_status_update')} type="boolean" description="إشعار للعميل عند كل تحديث في حالة طلبه" />
               <SettingRow label="إشعارات الطلبات للسائقين" {...rowProps('notify_drivers_new_order')} type="boolean" description="إشعار للسائقين المتاحين عند وصول طلب جديد" />
               <SettingRow label="تنبيه المدير للطلبات المنسية" {...rowProps('notify_admin_pending_orders')} type="boolean" description="تنبيه في لوحة التحكم للطلبات التي لم تُعيَّن لسائق" />
+            </SectionCard>
+
+            {/* إعدادات الفاتورة والسند */}
+            <SectionCard {...secProps('receipt_settings')} title="إعدادات الفاتورة والسند" icon={FileText} color="text-red-600">
+              <div className="py-2">
+                <div className="bg-red-50 rounded-lg p-3 text-xs text-red-700 mb-1">
+                  🧾 هذه الإعدادات تتحكم في محتوى وتصميم الفاتورة عند طباعة طلبات العملاء وطلبات وصلني.
+                </div>
+              </div>
+              <SettingRow label="إظهار شعار المتجر" {...rowProps('receipt_logo_enabled')} type="boolean" description="عرض شعار طمطوم في أعلى الفاتورة المطبوعة" />
+              <SettingRow label="اسم المتجر في الفاتورة" {...rowProps('receipt_store_name')} placeholder="طمطوم للتوصيل" description="الاسم الذي يظهر في ترويسة الفاتورة" />
+              <SettingRow label="رقم هاتف المتجر" {...rowProps('receipt_phone')} placeholder="+967..." description="رقم الهاتف الذي يظهر في الفاتورة للتواصل" />
+              <SettingRow label="رقم واتساب المتجر" {...rowProps('receipt_whatsapp')} placeholder="+967..." description="رقم واتساب للتواصل يظهر في الفاتورة" />
+              <SettingRow label="عنوان المتجر" {...rowProps('receipt_address')} placeholder="صنعاء، ..." description="العنوان الذي يظهر في الفاتورة" />
+              <SettingRow label="نص الترحيب (أعلى)" {...rowProps('receipt_header_text')} placeholder="شكراً لتسوقكم معنا" description="جملة ترحيبية تظهر أسفل الشعار في الفاتورة" />
+              <SettingRow label="نص التذييل (أسفل)" {...rowProps('receipt_footer_text')} placeholder="لا تُقبل هذه الفاتورة..." description="النص القانوني أو التنبيهي في أسفل الفاتورة" />
+              <SettingRow label="صفحة فيسبوك" {...rowProps('receipt_facebook')} placeholder="facebook.com/tamtom" description="رابط أو اسم صفحة فيسبوك يظهر في الفاتورة" />
+              <SettingRow label="حساب انستغرام" {...rowProps('receipt_instagram')} placeholder="@tamtom" description="معرف انستغرام يظهر في الفاتورة" />
+              <div className="py-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-xs text-amber-800 font-medium mb-1">💡 معاينة الفاتورة</p>
+                  <p className="text-xs text-amber-700 mb-3">لمعاينة تصميم الفاتورة الحالي، اضغط على أيقونة الطباعة في أي طلب من قائمة الطلبات.</p>
+                </div>
+              </div>
             </SectionCard>
 
           </TabsContent>
