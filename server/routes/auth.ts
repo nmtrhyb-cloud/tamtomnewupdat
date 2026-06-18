@@ -2,8 +2,22 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { dbStorage } from '../db';
-import { adminUsers, drivers, users, insertUserSchema } from '@shared/schema';
+import { adminUsers, drivers, users, insertUserSchema, uiSettings as uiSettingsTable } from '@shared/schema';
 import { eq, or, sql } from 'drizzle-orm';
+import { getCached, setCached } from '../utils/responseCache';
+
+async function isPhoneOtpRequired(): Promise<boolean> {
+  const cached = getCached<boolean>('require_phone_otp');
+  if (cached !== null) return cached;
+  try {
+    const [row] = await dbStorage.db.select().from(uiSettingsTable).where(eq(uiSettingsTable.key, 'require_phone_otp')).limit(1);
+    const value = row ? row.value !== 'false' : true;
+    setCached('require_phone_otp', value, 60_000);
+    return value;
+  } catch {
+    return true;
+  }
+}
 
 // ===== نظام OTP في الذاكرة =====
 interface OtpEntry {
@@ -284,14 +298,22 @@ router.post('/send-otp', async (req, res) => {
 
     phone = String(phone).trim().replace(/\s+/g, '');
 
+    // التحقق من إعداد التحقق بالهاتف
+    const requireOtp = await isPhoneOtpRequired();
+    if (!requireOtp) {
+      return res.json({
+        success: true,
+        skipOtp: true,
+        message: 'التسجيل بدون تحقق من الهاتف مفعّل',
+      });
+    }
+
     const otp = generateOtp();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 دقائق
     otpStore.set(phone, { otp, expiresAt, phone });
 
     console.log(`📱 OTP للهاتف ${phone}: ${otp}`);
 
-    // إرجاع رمز OTP دائماً (لا توجد خدمة SMS مُفعَّلة حالياً)
-    // للأرقام الحقيقية: عند تفعيل خدمة SMS، احذف testOtp من الاستجابة
     res.json({
       success: true,
       message: isTestPhone(phone)
@@ -352,34 +374,37 @@ router.post('/register', async (req, res) => {
     if (validatedData.phone) {
       const rawPhone = arabicToLatinDigits(String(validatedData.phone).trim()).replace(/\s+/g, '');
 
-      // التحقق من صحة رمز OTP قبل التسجيل
-      if (!otpCode) {
-        return res.status(400).json({
-          success: false,
-          message: 'رمز التحقق مطلوب. يرجى إرسال الرمز أولاً.',
-        });
-      }
-      const otpEntry = otpStore.get(rawPhone);
-      if (!otpEntry) {
-        return res.status(400).json({
-          success: false,
-          message: 'لم يتم إرسال رمز تحقق لهذا الرقم. يرجى إعادة الإرسال.',
-        });
-      }
-      if (Date.now() > otpEntry.expiresAt) {
+      // التحقق من إعداد OTP — إذا كان التحقق مطلوباً نتحقق من الرمز
+      const requireOtp = await isPhoneOtpRequired();
+      if (requireOtp) {
+        if (!otpCode) {
+          return res.status(400).json({
+            success: false,
+            message: 'رمز التحقق مطلوب. يرجى إرسال الرمز أولاً.',
+          });
+        }
+        const otpEntry = otpStore.get(rawPhone);
+        if (!otpEntry) {
+          return res.status(400).json({
+            success: false,
+            message: 'لم يتم إرسال رمز تحقق لهذا الرقم. يرجى إعادة الإرسال.',
+          });
+        }
+        if (Date.now() > otpEntry.expiresAt) {
+          otpStore.delete(rawPhone);
+          return res.status(400).json({
+            success: false,
+            message: 'انتهت صلاحية رمز التحقق. يرجى إعادة الإرسال.',
+          });
+        }
+        if (otpEntry.otp !== String(otpCode).trim()) {
+          return res.status(400).json({
+            success: false,
+            message: 'رمز التحقق غير صحيح.',
+          });
+        }
         otpStore.delete(rawPhone);
-        return res.status(400).json({
-          success: false,
-          message: 'انتهت صلاحية رمز التحقق. يرجى إعادة الإرسال.',
-        });
       }
-      if (otpEntry.otp !== String(otpCode).trim()) {
-        return res.status(400).json({
-          success: false,
-          message: 'رمز التحقق غير صحيح.',
-        });
-      }
-      otpStore.delete(rawPhone);
 
       // تطبيع رقم الهاتف السعودي (أرقام الاختبار مقبولة كما هي)
       const normalizeSaudiPhone = (p: string): string => {

@@ -47,6 +47,7 @@ import {
 } from "@shared/schema";
 import { DatabaseStorage } from "../db";
 import { coerceRequestData } from "../utils/coercion";
+import { logActivity } from "../utils/activityLogger";
 
 const router = express.Router();
 const dbStorage = new DatabaseStorage();
@@ -726,6 +727,8 @@ router.put("/orders/:id/status", async (req: any, res) => {
       console.error("Error creating tracking/notification in admin update:", err);
     }
     
+    logActivity({ req, action: 'update_order_status', entityType: 'order', entityId: id, oldData: { orderNumber: updatedOrder.orderNumber }, newData: { status, driverId: driverId || null } }).catch(() => {});
+
     res.json(updatedOrder);
   } catch (error) {
     console.error("خطأ في تحديث حالة الطلب:", error);
@@ -1237,6 +1240,7 @@ router.post("/drivers", async (req, res) => {
     const validatedData = insertDriverSchema.parse(driverData);
     
     const newDriver = await dbStorage.createDriver(validatedData);
+    logActivity({ req, action: 'create_driver', entityType: 'driver', entityId: newDriver.id, newData: { name: newDriver.name, phone: newDriver.phone } }).catch(() => {});
     res.status(201).json(newDriver);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -1267,6 +1271,7 @@ router.put("/drivers/:id", async (req, res) => {
       return res.status(404).json({ error: "السائق غير موجود" });
     }
     
+    logActivity({ req, action: 'update_driver', entityType: 'driver', entityId: id, newData: { name: updatedDriver.name, phone: updatedDriver.phone, isActive: updatedDriver.isActive } }).catch(() => {});
     res.json(updatedDriver);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -1290,6 +1295,7 @@ router.delete("/drivers/:id", async (req, res) => {
       return res.status(404).json({ error: "السائق غير موجود" });
     }
     
+    logActivity({ req, action: 'delete_driver', entityType: 'driver', entityId: id, oldData: { id } }).catch(() => {});
     res.json({ success: true, message: "تم حذف السائق بنجاح" });
   } catch (error) {
     console.error("خطأ في حذف السائق:", error);
@@ -2200,6 +2206,13 @@ router.put("/ui-settings/:key", async (req, res) => {
     // بث التحديث عبر WebSocket لمزامنة جميع الأجهزة فوراً
     broadcastSettingsChanged(key);
 
+    // إبطال الكاش لهذا المفتاح فوراً
+    try {
+      const { invalidateCache } = await import('../utils/responseCache.js');
+      invalidateCache(key);
+      invalidateCache('ui-settings-all');
+    } catch {}
+
     res.json(setting);
   } catch (error) {
     console.error("خطأ في تحديث إعداد الواجهة:", error);
@@ -2563,6 +2576,7 @@ router.post("/sub-admins", requirePermission('manage_admins'), async (req, res) 
       isActive: isActive !== false,
     } as any).returning();
     const { password: _, ...safe } = newSubAdmin as any;
+    logActivity({ req, action: 'create_sub_admin', entityType: 'sub_admin', entityId: safe.id, newData: { name: safe.name, phone: safe.phone, permissions } }).catch(() => {});
     res.status(201).json(safe);
   } catch (error: any) {
     if (error?.code === '23505') {
@@ -2588,6 +2602,7 @@ router.put("/sub-admins/:id", requirePermission('manage_admins'), async (req, re
     const [updated] = await db.update(adminUsers).set(updateData).where(eq(adminUsers.id, req.params.id)).returning();
     if (!updated) return res.status(404).json({ error: "المشرف غير موجود" });
     const { password: _, ...safe } = updated as any;
+    logActivity({ req, action: 'update_sub_admin', entityType: 'sub_admin', entityId: req.params.id, newData: { name: safe.name, permissions: safe.permissions, isActive: safe.isActive } }).catch(() => {});
     res.json(safe);
   } catch (error) {
     res.status(500).json({ error: "خطأ في الخادم" });
@@ -2596,9 +2611,98 @@ router.put("/sub-admins/:id", requirePermission('manage_admins'), async (req, re
 
 router.delete("/sub-admins/:id", requirePermission('manage_admins'), async (req, res) => {
   try {
-    await db.delete(adminUsers).where(eq(adminUsers.id, req.params.id));
+    const targetId = req.params.id;
+    await db.delete(adminUsers).where(eq(adminUsers.id, targetId));
+    logActivity({ req, action: 'delete_sub_admin', entityType: 'sub_admin', entityId: targetId, oldData: { id: targetId } }).catch(() => {});
     res.json({ success: true });
   } catch (error) {
+    res.status(500).json({ error: "خطأ في الخادم" });
+  }
+});
+
+// ===== Activity Logs (comprehensive) =====
+
+router.get("/activity-logs", async (req: any, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 200;
+    const entityType = req.query.entityType as string | undefined;
+    const adminId = req.query.adminId as string | undefined;
+
+    let query = db
+      .select({
+        id: auditLogs.id,
+        adminId: auditLogs.adminId,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        oldData: auditLogs.oldData,
+        newData: auditLogs.newData,
+        ipAddress: auditLogs.ipAddress,
+        createdAt: auditLogs.createdAt,
+      })
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+
+    const logs = await (entityType
+      ? db.select({ id: auditLogs.id, adminId: auditLogs.adminId, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, oldData: auditLogs.oldData, newData: auditLogs.newData, ipAddress: auditLogs.ipAddress, createdAt: auditLogs.createdAt }).from(auditLogs).where(eq(auditLogs.entityType, entityType)).orderBy(desc(auditLogs.createdAt)).limit(limit)
+      : query);
+
+    const adminIds = [...new Set(logs.map(l => l.adminId))];
+    let adminMap: Record<string, { name: string; userType: string }> = {};
+    if (adminIds.length > 0) {
+      const admins = await db.select({ id: adminUsers.id, name: adminUsers.name, userType: adminUsers.userType }).from(adminUsers).where(inArray(adminUsers.id, adminIds));
+      admins.forEach(a => { adminMap[a.id] = { name: a.name, userType: a.userType }; });
+    }
+
+    const ACTION_LABELS: Record<string, string> = {
+      create_sub_admin: 'إضافة مشرف فرعي', update_sub_admin: 'تعديل مشرف فرعي', delete_sub_admin: 'حذف مشرف فرعي',
+      create_driver: 'إضافة سائق', update_driver: 'تعديل سائق', delete_driver: 'حذف سائق',
+      update_order_status: 'تغيير حالة طلب',
+      update_menu_item: 'تعديل منتج', create_menu_item: 'إضافة منتج', delete_menu_item: 'حذف منتج',
+      create_category: 'إضافة تصنيف', update_category: 'تعديل تصنيف', delete_category: 'حذف تصنيف',
+      login: 'تسجيل دخول', logout: 'تسجيل خروج',
+    };
+
+    const ENTITY_LABELS: Record<string, string> = {
+      order: 'طلب', driver: 'سائق', sub_admin: 'مشرف فرعي',
+      menu_item: 'منتج', category: 'تصنيف', auth: 'المصادقة',
+    };
+
+    const formatted = logs.map(log => {
+      let details = '';
+      try {
+        const nd = log.newData ? JSON.parse(log.newData) : null;
+        const od = log.oldData ? JSON.parse(log.oldData) : null;
+        if (log.action === 'update_order_status') details = `الطلب ${od?.orderNumber || ''} → ${nd?.status || ''}`;
+        else if (log.action === 'create_driver' || log.action === 'update_driver') details = nd?.name || '';
+        else if (log.action === 'delete_driver') details = `حذف السائق`;
+        else if (log.action === 'create_sub_admin' || log.action === 'update_sub_admin') details = nd?.name || '';
+        else if (log.action === 'delete_sub_admin') details = `حذف المشرف`;
+        else if (nd?.name) details = nd.name;
+        else if (od?.name) details = od.name;
+      } catch {}
+
+      return {
+        id: log.id,
+        adminId: log.adminId,
+        adminName: adminMap[log.adminId]?.name || 'غير معروف',
+        adminType: adminMap[log.adminId]?.userType || 'admin',
+        action: log.action,
+        actionLabel: ACTION_LABELS[log.action] || log.action,
+        entityType: log.entityType,
+        entityLabel: ENTITY_LABELS[log.entityType] || log.entityType,
+        entityId: log.entityId,
+        details,
+        ipAddress: log.ipAddress,
+        createdAt: log.createdAt,
+        rawData: { old: log.oldData, new: log.newData },
+      };
+    });
+
+    res.json({ logs: formatted, total: formatted.length });
+  } catch (error) {
+    console.error("خطأ في جلب سجل الأنشطة:", error);
     res.status(500).json({ error: "خطأ في الخادم" });
   }
 });

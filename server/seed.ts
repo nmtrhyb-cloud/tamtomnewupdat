@@ -92,6 +92,7 @@ const defaultUiSettings = [
   // إعدادات حالة المتجر المتقدمة
   { key: "store_close_message", value: "عذراً، المتجر مغلق حالياً. سنعود قريباً إن شاء الله.", category: "store", description: "الرسالة التي تظهر للعملاء عند إغلاق المتجر يدوياً" },
   { key: "allow_scheduled_orders_when_closed", value: "true", category: "store", description: "السماح بالطلبات المجدولة عندما يكون المتجر مغلقاً" },
+  { key: "require_phone_otp", value: "true", category: "security", description: "التحقق من رقم الهاتف عند تسجيل العميل بإرسال رمز OTP عبر SMS" },
 ];
 
 // ضمان وجود الإعدادات الافتراضية في قاعدة البيانات (لكل تشغيل)

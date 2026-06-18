@@ -2,6 +2,7 @@ import express from "express";
 import { storage } from "../storage.js";
 import * as schema from "../../shared/schema.js";
 import { eq, desc, and, or, like, sql } from "drizzle-orm";
+import { getCached, setCached } from "../utils/responseCache.js";
 
 const router = express.Router();
 
@@ -58,7 +59,10 @@ router.get("/app-status", async (req, res) => {
 // جلب التصنيفات
 router.get("/categories", async (req, res) => {
   try {
+    const cached = getCached<any[]>('categories-all');
+    if (cached) return res.json(cached);
     const categories = await storage.getCategories();
+    setCached('categories-all', categories, 60_000);
     res.json(categories);
   } catch (error) {
     console.error("خطأ في جلب التصنيفات:", error);
@@ -75,9 +79,16 @@ router.get("/restaurants", async (req, res) => {
     if (search) {
       restaurants = await storage.searchRestaurants(`%${search}%`, categoryId as string);
     } else if (categoryId && categoryId !== 'all') {
+      const cacheKey = `restaurants-cat-${categoryId}`;
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) return res.json(cached);
       restaurants = await storage.getRestaurantsByCategory(categoryId as string);
+      setCached(cacheKey, restaurants, 45_000);
     } else {
+      const cached = getCached<any[]>('restaurants-all');
+      if (cached) return res.json(cached);
       restaurants = await storage.getRestaurants();
+      setCached('restaurants-all', restaurants, 45_000);
     }
 
     res.json(restaurants);
