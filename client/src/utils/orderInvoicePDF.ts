@@ -140,20 +140,15 @@ function generateInvoiceHTML(data: InvoiceData, settings?: StoreReceiptSettings)
 
         <!-- الشعار -->
         <div style="text-align:center;flex:1;">
-          ${logoEnabled ? `
-            <img src="${logoURL}" 
-                 style="height:70px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));" 
-                 onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
-            <div id="logo-fallback" style="display:none;background:white;border-radius:10px;padding:4px 12px;display:inline-block;">
-              <span style="color:${TAMTOM_RED};font-size:22px;font-weight:900;">طمطوم</span>
-              <div style="color:${TAMTOM_GREEN};font-size:9px;text-align:center;">TAM TOM</div>
-            </div>
-          ` : `
-            <div style="background:white;border-radius:10px;padding:6px 14px;display:inline-block;">
-              <span style="color:${TAMTOM_RED};font-size:24px;font-weight:900;letter-spacing:-1px;">طمطوم</span>
-              <div style="color:${TAMTOM_GREEN};font-size:10px;text-align:center;">TAM TOM</div>
-            </div>
-          `}
+          <div style="background:white;border-radius:10px;padding:6px 12px;display:inline-block;text-align:center;">
+            ${logoEnabled ? `
+              <img src="${logoURL}" 
+                   style="height:44px;width:auto;object-fit:contain;display:block;margin:0 auto 2px;"
+                   onerror="this.style.display='none'" />
+            ` : ''}
+            <div style="color:${TAMTOM_RED};font-size:20px;font-weight:900;letter-spacing:-1px;line-height:1;">طمطوم</div>
+            <div style="color:${TAMTOM_GREEN};font-size:9px;text-align:center;letter-spacing:2px;">TAM TOM</div>
+          </div>
           ${headerText ? `<div style="color:rgba(255,255,255,0.9);font-size:10px;margin-top:4px;">${headerText}</div>` : ''}
         </div>
 
