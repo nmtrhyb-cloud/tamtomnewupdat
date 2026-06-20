@@ -46,14 +46,14 @@ export const TopBar: React.FC = () => {
   return (
     <div className="sticky top-0 z-50">
       {/* Desktop Header */}
-      <div className="bg-gradient-to-r from-[#1A3A1A] via-[#1E4D1E] to-[#1A3A1A] border-b border-white/10 hidden md:block shadow-lg">
+      <div className="bg-gradient-to-r from-[#E53225] via-[#d42d20] to-[#E53225] border-b border-white/10 hidden md:block shadow-lg">
         <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-8">
           <div 
             className="cursor-pointer shrink-0 flex items-center gap-3 group"
             onClick={() => setLocation('/')}
           >
             <div className="relative">
-              <div className="absolute inset-0 bg-[#E53225] rounded-full blur-xl opacity-20 group-hover:opacity-35 transition-opacity" />
+              <div className="absolute inset-0 bg-white rounded-full blur-xl opacity-20 group-hover:opacity-35 transition-opacity" />
               {settingsLoading ? (
                 <div className="h-14 w-14 bg-white/10 animate-pulse rounded-full" />
               ) : (
@@ -69,12 +69,12 @@ export const TopBar: React.FC = () => {
           <div className="flex-1 max-w-2xl">
             <form onSubmit={handleSearch} className="relative group">
               <Input 
-                className="w-full pr-12 pl-4 h-12 bg-white/10 border-2 border-white/20 focus:border-[#E53225]/60 focus:bg-white/15 rounded-xl transition-all text-base font-bold text-white placeholder:text-white/50"
+                className="w-full pr-12 pl-4 h-12 bg-white/15 border-2 border-white/30 focus:border-white/60 focus:bg-white/20 rounded-xl transition-all text-base font-bold text-white placeholder:text-white/60"
                 placeholder="ابحث عن منتج..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors">
+              <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors">
                 <Search className="h-6 w-6" />
               </button>
             </form>
@@ -83,26 +83,26 @@ export const TopBar: React.FC = () => {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setLocation(user ? '/profile' : '/auth')}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors relative"
+              className="p-2 hover:bg-white/15 rounded-full transition-colors relative"
             >
-              <User className="h-7 w-7 text-white/80" />
+              <User className="h-7 w-7 text-white/90" />
             </button>
             
             <button 
               onClick={() => setLocation('/favorites')}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors relative"
+              className="p-2 hover:bg-white/15 rounded-full transition-colors relative"
             >
-              <Heart className="h-7 w-7 text-white/80" />
+              <Heart className="h-7 w-7 text-white/90" />
             </button>
 
             <button 
               onClick={handleOpenCart}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors relative"
+              className="p-2 hover:bg-white/15 rounded-full transition-colors relative"
             >
               <div className="relative">
-                <ShoppingCart className="h-7 w-7 text-white/80" />
+                <ShoppingCart className="h-7 w-7 text-white/90" />
                 {getItemCount() > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#E53225] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold border-2 border-[#1A3A1A]">
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#5BB827] text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold border-2 border-white">
                     {getItemCount()}
                   </span>
                 )}
@@ -113,10 +113,10 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* Mobile Header */}
-      <div className="md:hidden relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1A3A1A 0%, #2A5228 50%, #1C4A1C 100%)' }}>
+      <div className="md:hidden relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #E53225 0%, #d42d20 50%, #c42b1f 100%)' }}>
         {/* Decorative circles */}
-        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-[#E53225] opacity-15 blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-[#5BB827] opacity-10 blur-2xl pointer-events-none" />
+        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white opacity-10 blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-[#5BB827] opacity-15 blur-2xl pointer-events-none" />
 
         <div className="relative px-3 py-2.5 flex items-center justify-between gap-2">
           {/* Left side (RTL): Menu + Notifications */}
@@ -137,9 +137,9 @@ export const TopBar: React.FC = () => {
             className="flex-1 flex items-center justify-center cursor-pointer"
             onClick={() => setLocation('/')}
           >
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/8 border border-white/15 backdrop-blur-sm">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm">
               <div className="relative">
-                <div className="absolute inset-0 bg-[#E53225] rounded-full blur-md opacity-40" />
+                <div className="absolute inset-0 bg-white rounded-full blur-md opacity-30" />
                 {settingsLoading ? (
                   <div className="relative h-9 w-9 bg-white/10 rounded-full animate-pulse" />
                 ) : (
@@ -167,7 +167,7 @@ export const TopBar: React.FC = () => {
             >
               <ShoppingCart className="h-5 w-5" />
               {getItemCount() > 0 && (
-                <span className="absolute top-0.5 right-0.5 bg-[#E53225] text-white text-[9px] rounded-full h-4 min-w-4 px-1 flex items-center justify-center font-black ring-2 ring-[#1A3A1A] shadow-lg">
+                <span className="absolute top-0.5 right-0.5 bg-[#5BB827] text-white text-[9px] rounded-full h-4 min-w-4 px-1 flex items-center justify-center font-black ring-2 ring-white shadow-lg">
                   {getItemCount()}
                 </span>
               )}
@@ -181,7 +181,7 @@ export const TopBar: React.FC = () => {
             <form onSubmit={handleSearch} className="relative">
               <input
                 autoFocus
-                className="w-full bg-white/95 text-slate-900 placeholder-slate-400 border border-white/30 rounded-2xl px-4 py-2.5 pr-11 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#E53225] shadow-lg"
+                className="w-full bg-white/95 text-slate-900 placeholder-slate-400 border border-white/30 rounded-2xl px-4 py-2.5 pr-11 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white shadow-lg"
                 placeholder="ابحث عن منتج أو صنف..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

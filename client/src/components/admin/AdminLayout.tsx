@@ -433,7 +433,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       key: 'main',
       label: 'الرئيسية',
       items: [
-        { icon: BarChart3, label: 'لوحة التحكم', path: '/admin', permission: null },
+        { icon: BarChart3, label: 'لوحة التحكم', path: '/admin/dashboard', permission: null },
         { icon: ShoppingBag, label: 'الطلبات', path: '/admin/orders', badge: pendingOrdersCount, permission: 'manage_orders' },
       ].filter(item => hasPermission(item.permission))
     },

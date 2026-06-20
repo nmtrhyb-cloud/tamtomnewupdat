@@ -54,7 +54,6 @@ export default function Layout({ children }: LayoutProps) {
     return getAppStatus(openingTime, closingTime, storeStatus, closeMessage);
   })();
 
-  // إعادة إظهار النافذة عند تغيّر حالة المتجر إلى مغلق
   useEffect(() => {
     if (!appStatus.isOpen) setOverlayDismissed(false);
   }, [appStatus.isOpen]);
@@ -122,7 +121,6 @@ export default function Layout({ children }: LayoutProps) {
       <TopBar />
       {location !== '/' && !location.startsWith('/restaurant/') && <Navbar />}
 
-      {/* App Closed Overlay — يظهر مرة واحدة عند الدخول، قابل للإغلاق للتصفح */}
       {!appStatus.isOpen && !overlayDismissed && (
         <AppClosedOverlay
           openingTime={appStatus.openingTime}
@@ -139,11 +137,11 @@ export default function Layout({ children }: LayoutProps) {
         </SheetTrigger>
         <SheetContent side="right" className="w-[320px] p-0 flex flex-col border-none shadow-2xl bg-gradient-to-b from-slate-50 to-white">
 
-          {/* Hero header: dark navy with logo + profile card */}
-          <div className="relative bg-gradient-to-br from-[#0E1729] via-[#152033] to-[#0B1220] px-5 pt-7 pb-14 overflow-hidden">
+          {/* Hero header: red brand gradient */}
+          <div className="relative bg-gradient-to-br from-[#E53225] via-[#d42d20] to-[#c42b1f] px-5 pt-7 pb-14 overflow-hidden">
             {/* Decorative blobs */}
-            <div className="absolute -top-12 -right-8 w-44 h-44 rounded-full bg-[#F5A623] opacity-25 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-[#FFC061] opacity-15 blur-3xl pointer-events-none" />
+            <div className="absolute -top-12 -right-8 w-44 h-44 rounded-full bg-white opacity-10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-[#5BB827] opacity-20 blur-3xl pointer-events-none" />
 
             <button
               onClick={() => setSidebarOpen(false)}
@@ -156,22 +154,22 @@ export default function Layout({ children }: LayoutProps) {
             {/* Logo + brand */}
             <div className="relative flex items-center justify-center gap-3 mb-5">
               <div className="relative">
-                <div className="absolute inset-0 bg-[#F5A623] rounded-full blur-xl opacity-40" />
+                <div className="absolute inset-0 bg-white rounded-full blur-xl opacity-30" />
                 {sidebarLogoUrl ? (
-                  <img src={sidebarLogoUrl} alt={appName} className="relative h-16 w-16 object-contain drop-shadow-[0_0_15px_rgba(245,166,35,0.5)]" />
+                  <img src={sidebarLogoUrl} alt={appName} className="relative h-16 w-16 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
                 ) : (
-                  <div className="relative h-16 w-16 flex items-center justify-center rounded-2xl bg-white/10 text-3xl font-black text-white">
+                  <div className="relative h-16 w-16 flex items-center justify-center rounded-2xl bg-white/15 text-3xl font-black text-white">
                     و
                   </div>
                 )}
               </div>
               <div className="flex flex-col leading-none">
                 <span className="text-3xl font-black text-white tracking-tight">{appName}</span>
-                <span className="text-[10px] font-bold text-[#F5A623] tracking-[0.35em] mt-1">طمطوم</span>
+                <span className="text-[10px] font-bold text-[#5BB827] tracking-[0.35em] mt-1">طمطوم</span>
               </div>
             </div>
 
-            <p className="relative text-center text-xs font-bold text-white/70 leading-snug px-4">
+            <p className="relative text-center text-xs font-bold text-white/80 leading-snug px-4">
               {sidebarTagline}
             </p>
           </div>
@@ -180,10 +178,10 @@ export default function Layout({ children }: LayoutProps) {
           <div className="relative -mt-9 px-5 z-10">
             <button
               onClick={() => navigate(user ? '/profile' : '/auth')}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-[0_10px_30px_-12px_rgba(14,23,41,0.25)] hover:shadow-[0_15px_35px_-10px_rgba(245,166,35,0.35)] transition-all"
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-[0_10px_30px_-12px_rgba(229,50,37,0.20)] hover:shadow-[0_15px_35px_-10px_rgba(229,50,37,0.25)] transition-all"
               data-testid="button-profile-card"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#F5A623] to-[#FFC061] flex items-center justify-center text-white font-black text-lg shadow-md flex-shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#E53225] to-[#c42b1f] flex items-center justify-center text-white font-black text-lg shadow-md flex-shrink-0">
                 {user ? (user.name?.charAt(0) || user.phone?.charAt(0) || 'و') : <User className="h-6 w-6" />}
               </div>
               <div className="flex-1 text-right min-w-0">
@@ -213,14 +211,14 @@ export default function Layout({ children }: LayoutProps) {
                     onClick={() => navigate(item.path)}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
                       isActive
-                        ? 'bg-gradient-to-l from-[#F5A623]/15 to-transparent ring-1 ring-[#F5A623]/30'
+                        ? 'bg-gradient-to-l from-[#E53225]/10 to-transparent ring-1 ring-[#E53225]/25'
                         : 'hover:bg-slate-50'
                     }`}
                     data-testid={`link-sidebar-${item.path.replace('/', '')}`}
                   >
                     <div className={`w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0 transition-colors ${
                       isActive
-                        ? 'bg-gradient-to-br from-[#F5A623] to-[#FFC061] text-white shadow-md'
+                        ? 'bg-gradient-to-br from-[#E53225] to-[#c42b1f] text-white shadow-md'
                         : 'bg-slate-100 text-slate-600'
                     }`}>
                       <Icon className="h-4.5 w-4.5" />
@@ -229,7 +227,7 @@ export default function Layout({ children }: LayoutProps) {
                       {item.label}
                     </span>
                     {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#F5A623]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E53225]" />
                     )}
                   </button>
                 );
@@ -255,7 +253,7 @@ export default function Layout({ children }: LayoutProps) {
               <span className="text-sm font-bold flex-1 text-right text-slate-700">
                 {language === 'ar' ? 'English' : 'العربية'}
               </span>
-              <span className="text-[10px] font-black bg-[#F5A623]/15 text-[#F5A623] px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-black bg-[#5BB827]/15 text-[#5BB827] px-2 py-0.5 rounded-full">
                 {language === 'ar' ? 'EN' : 'AR'}
               </span>
             </button>
@@ -267,7 +265,7 @@ export default function Layout({ children }: LayoutProps) {
               {showShareButton && (
                 <button
                   onClick={handleShare}
-                  className="w-11 h-11 flex items-center justify-center rounded-2xl bg-white border border-slate-200 hover:border-[#F5A623]/40 hover:bg-[#F5A623]/5 shadow-sm transition-all"
+                  className="w-11 h-11 flex items-center justify-center rounded-2xl bg-white border border-slate-200 hover:border-[#E53225]/40 hover:bg-[#E53225]/5 shadow-sm transition-all"
                   data-testid="button-share"
                 >
                   <Share2 className="h-4.5 w-4.5 text-slate-600" />
@@ -276,7 +274,7 @@ export default function Layout({ children }: LayoutProps) {
               {showContactButton && (
                 <button
                   onClick={() => window.open(whatsappLink, '_blank')}
-                  className="flex-1 max-w-[180px] h-11 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#F5A623] to-[#FFC061] text-white font-black text-sm shadow-md hover:shadow-lg transition-all"
+                  className="flex-1 max-w-[180px] h-11 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#5BB827] to-[#4da020] text-white font-black text-sm shadow-md hover:shadow-lg transition-all"
                   data-testid="button-contact-support"
                 >
                   <MessageCircle className="h-4 w-4" />
@@ -339,10 +337,10 @@ export default function Layout({ children }: LayoutProps) {
                   <div className="grid gap-4">
                     <Button
                       variant="outline"
-                      className="h-20 flex items-center justify-between px-6 rounded-2xl border-2 border-orange-50 hover:bg-orange-50 hover:border-orange-200 group transition-all"
+                      className="h-20 flex items-center justify-between px-6 rounded-2xl border-2 border-red-50 hover:bg-red-50 hover:border-red-200 group transition-all"
                       onClick={() => { window.open(whatsappLink, '_blank'); setSupportOpen(false); }}
                     >
-                      <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition-colors">
+                      <div className="bg-red-100 p-3 rounded-xl group-hover:bg-red-200 transition-colors">
                         <MessageCircle className="h-6 w-6 text-primary" />
                       </div>
                       <div className="flex-1 text-right mr-4">
@@ -354,11 +352,11 @@ export default function Layout({ children }: LayoutProps) {
 
                     <Button
                       variant="outline"
-                      className="h-20 flex items-center justify-between px-6 rounded-2xl border-2 border-blue-50 hover:bg-blue-50 hover:border-blue-200 group transition-all"
+                      className="h-20 flex items-center justify-between px-6 rounded-2xl border-2 border-green-50 hover:bg-green-50 hover:border-green-200 group transition-all"
                       onClick={() => { window.location.href = phoneLink; setSupportOpen(false); }}
                     >
-                      <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition-colors">
-                        <PhoneCall className="h-6 w-6 text-blue-600" />
+                      <div className="bg-green-100 p-3 rounded-xl group-hover:bg-green-200 transition-colors">
+                        <PhoneCall className="h-6 w-6 text-[#5BB827]" />
                       </div>
                       <div className="flex-1 text-right mr-4">
                         <p className="font-black text-xl text-gray-900">اتصال</p>
