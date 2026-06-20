@@ -125,22 +125,8 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="relative mx-auto mb-6 w-48">
-            <img
-              src="/itqansoft-promo.png"
-              alt="itQANSoft"
-              className="w-full object-contain"
-            />
-          </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm mb-1">جاري تحميل البيانات...</p>
-          <a
-            href="tel:777146387"
-            className="inline-flex items-center gap-1.5 text-primary font-black text-lg tracking-widest hover:underline"
-            dir="ltr"
-          >
-            📞 777 146 387
-          </a>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">جاري تحميل البيانات...</p>
         </div>
       </div>
     );
