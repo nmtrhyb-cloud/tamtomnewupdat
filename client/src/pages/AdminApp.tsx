@@ -27,6 +27,7 @@ import WalletManagement from "./WalletManagement";
 import NotFound from "./not-found";
 import React from "react";
 import AdminErrorBoundary from "@/components/AdminErrorBoundary";
+import AdminWelcomePage from "./admin/AdminWelcomePage";
 
 interface AdminAppProps {
   onLogout?: () => void;
@@ -37,7 +38,7 @@ export const AdminApp: React.FC<AdminAppProps> = () => {
     <AdminLayout>
       <AdminErrorBoundary>
       <Switch>
-        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin" component={AdminWelcomePage} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/admin/orders" component={AdminOrders} />
         <Route path="/admin/menu-items" component={AdminMenuItems} />

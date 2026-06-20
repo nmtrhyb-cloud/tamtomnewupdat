@@ -138,7 +138,7 @@
 
   /* الشريط العلوي: تدرج أحمر طمطوم */
   .header-gradient {
-    background: linear-gradient(135deg, #E53225 0%, #c42b1f 60%, #1a3a1a 130%);
+    background: linear-gradient(135deg, #E53225 0%, #c42b1f 60%, #a82519 100%);
   }
 
   .primary-gradient {
