@@ -15,9 +15,10 @@ interface RatingDialogProps {
   restaurantName: string;
   driverName?: string;
   customerId?: string;
+  onRateSuccess?: () => void;
 }
 
-export default function RatingDialog({ isOpen, onClose, orderId, restaurantName, driverName, customerId }: RatingDialogProps) {
+export default function RatingDialog({ isOpen, onClose, orderId, restaurantName, driverName, customerId, onRateSuccess }: RatingDialogProps) {
   const [restaurantRating, setRestaurantRating] = useState(0);
   const [restaurantComment, setRestaurantComment] = useState('');
   const [driverRating, setDriverRating] = useState(0);
@@ -27,14 +28,19 @@ export default function RatingDialog({ isOpen, onClose, orderId, restaurantName,
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', `/api/customer/orders/${orderId}/review`, {
-        customerId: customerId || user?.id,
+      const effectiveCustomerId = customerId || user?.id;
+      const body: Record<string, any> = {
         rating: restaurantRating,
-        comment: restaurantComment,
-        driverRating: driverRating > 0 ? driverRating : undefined,
-        driverComment: driverComment || undefined,
-        // we use the info from the order on the server side
-      });
+        comment: restaurantComment || null,
+      };
+      if (effectiveCustomerId) {
+        body.customerId = effectiveCustomerId;
+      }
+      if (driverRating > 0) {
+        body.driverRating = driverRating;
+        body.driverComment = driverComment || null;
+      }
+      const res = await apiRequest('POST', `/api/customer/orders/${orderId}/review`, body);
       return res.json();
     },
     onSuccess: () => {
@@ -42,6 +48,7 @@ export default function RatingDialog({ isOpen, onClose, orderId, restaurantName,
         title: "شكراً لتقييمك!",
         description: "تم استلام تقييمك بنجاح.",
       });
+      onRateSuccess?.();
       onClose();
     },
     onError: (error: Error) => {
