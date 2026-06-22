@@ -518,7 +518,7 @@ export default function OrdersPage() {
                           </Button>
                         )}
                         
-                        {order.status === 'delivered' && !order.isRated && (
+                        {order.status === 'delivered' && !order.isRated && !order._isWasalni && (
                           <Button
                             variant="default"
                             size="sm"
@@ -568,6 +568,9 @@ export default function OrdersPage() {
             onClose={() => {
               setShowRatingDialog(false);
               setSelectedOrder(null);
+            }}
+            onRateSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['orders', customerPhone, customerId] });
             }}
             orderId={selectedOrder.id}
             restaurantName={selectedOrder.restaurantName || "المطعم"}

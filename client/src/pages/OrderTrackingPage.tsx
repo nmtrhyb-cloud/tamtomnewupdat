@@ -36,6 +36,8 @@ interface OrderDetails {
   driverName?: string;
   driverPhone?: string;
   driverId?: string;
+  driverLat?: string | null;
+  driverLng?: string | null;
   restaurantName?: string;
   orderNumber: string;
   createdAt: Date;
@@ -133,6 +135,17 @@ export default function OrderTrackingPage() {
       clearTimeout(reconnectTimeout);
     };
   }, [orderId, refetch, orderData?.order.driverId]);
+
+  // تحميل موقع السائق الأولي من قاعدة البيانات عند تحميل الصفحة
+  useEffect(() => {
+    if (orderData?.order.driverLat && orderData?.order.driverLng && !driverLocation) {
+      const lat = parseFloat(orderData.order.driverLat);
+      const lng = parseFloat(orderData.order.driverLng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setDriverLocation([lat, lng]);
+      }
+    }
+  }, [orderData?.order.driverLat, orderData?.order.driverLng]);
 
   useEffect(() => {
     if (orderData?.order.status === 'delivered' && !hasShownRating) {
@@ -367,18 +380,35 @@ export default function OrderTrackingPage() {
                   تتبع الموقع المباشر
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0 h-[250px] relative">
-                <MapComponent 
-                  center={driverLocation || [15.3694, 44.1910]} // Default to Sana'a if no location
-                  zoom={15}
-                  height="100%"
-                  driverPosition={driverLocation || undefined}
-                  markers={order.customerLocationLat && order.customerLocationLng ? [{
-                    position: [parseFloat(order.customerLocationLat), parseFloat(order.customerLocationLng)],
-                    title: 'موقعك',
-                    type: 'destination'
-                  }] : []}
-                />
+              <CardContent className="p-0 h-[280px] relative">
+                {(() => {
+                  const customerPos: [number, number] | null =
+                    order.customerLocationLat && order.customerLocationLng
+                      ? [parseFloat(order.customerLocationLat), parseFloat(order.customerLocationLng)]
+                      : null;
+
+                  // حساب مركز الخريطة بين السائق والعميل
+                  const mapCenter: [number, number] = driverLocation && customerPos
+                    ? [
+                        (driverLocation[0] + customerPos[0]) / 2,
+                        (driverLocation[1] + customerPos[1]) / 2,
+                      ]
+                    : driverLocation || customerPos || [15.3694, 44.1910];
+
+                  return (
+                    <MapComponent
+                      center={mapCenter}
+                      zoom={14}
+                      height="100%"
+                      driverPosition={driverLocation || undefined}
+                      markers={customerPos ? [{
+                        position: customerPos,
+                        title: 'موقعك',
+                        type: 'destination'
+                      }] : []}
+                    />
+                  );
+                })()}
                 {!driverLocation && (
                   <div className="absolute inset-0 bg-black/5 flex items-center justify-center backdrop-blur-[1px] z-[400]">
                     <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
