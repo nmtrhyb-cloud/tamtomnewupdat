@@ -255,8 +255,9 @@ router.post("/orders/:orderId/review", async (req, res) => {
     }
 
     // التحقق من أن العميل يملك هذا الطلب
-    // في حالة عدم توفر customerId في الطلب (طلب سريع)، سنتجاوز التحقق أو نستخدم الهاتف
-    if (order.customerId && order.customerId !== customerId) {
+    // نتحقق فقط إذا كان كلا الطرفين (الطلب والعميل) يحملان معرّفاً صريحاً ويختلفان
+    // حالات الضيوف (بدون customerId في الطلب أو الطلب) تُسمح تلقائياً
+    if (order.customerId && customerId && order.customerId !== customerId) {
       return res.status(403).json({ error: "غير مصرح لك بتقييم هذا الطلب" });
     }
 

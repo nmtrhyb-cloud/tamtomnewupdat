@@ -570,11 +570,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parsedItems = [];
       }
 
+      // Fetch driver's current GPS location from DB for initial map position
+      let driverLat: string | null = null;
+      let driverLng: string | null = null;
+      if (orderData.driverId) {
+        try {
+          const driver = await storage.getDriver(orderData.driverId);
+          if (driver) {
+            driverLat = driver.latitude || null;
+            driverLng = driver.longitude || null;
+          }
+        } catch (e) {
+          // non-fatal
+        }
+      }
+
       res.json({
         order: {
           ...orderData,
           items: parsedItems,
-          total: parseFloat(orderData.total || '0')
+          total: parseFloat(orderData.total || '0'),
+          driverLat,
+          driverLng,
         },
         tracking
       });
