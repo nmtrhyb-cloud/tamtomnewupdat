@@ -370,8 +370,8 @@ export default function OrderTrackingPage() {
           </Card>
         )}
 
-        {/* Driver Info & Map */}
-        {(['confirmed', 'preparing', 'ready', 'picked_up', 'on_way'].includes(order.status)) && order.driverId && (
+        {/* Driver Info & Map - shows for all active orders */}
+        {!['cancelled', 'delivered'].includes(order.status) && (order.customerLocationLat || order.driverId || driverLocation) && (
           <div className="space-y-4">
             <Card className="overflow-hidden">
               <CardHeader className="pb-2">
@@ -413,23 +413,27 @@ export default function OrderTrackingPage() {
                   <div className="absolute inset-0 bg-black/5 flex items-center justify-center backdrop-blur-[1px] z-[400]">
                     <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                       <Loader className="h-4 w-4 animate-spin text-primary" />
-                      <span className="text-sm font-medium">في انتظار موقع السائق...</span>
+                      <span className="text-sm font-medium">
+                        {order.driverId ? 'في انتظار موقع السائق...' : 'في انتظار تعيين سائق...'}
+                      </span>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <DriverCommunication 
-              driver={{
-                id: order.driverId || '',
-                name: order.driverName || 'سائق التوصيل',
-                phone: order.driverPhone || '',
-                isAvailable: true
-              }}
-              orderNumber={order.orderNumber}
-              customerLocation={order.deliveryAddress}
-            />
+            {order.driverId && (
+              <DriverCommunication 
+                driver={{
+                  id: order.driverId || '',
+                  name: order.driverName || 'سائق التوصيل',
+                  phone: order.driverPhone || '',
+                  isAvailable: true
+                }}
+                orderNumber={order.orderNumber}
+                customerLocation={order.deliveryAddress}
+              />
+            )}
           </div>
         )}
 
