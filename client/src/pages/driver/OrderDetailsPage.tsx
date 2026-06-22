@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import DriverMapView from '@/components/maps/DriverMapView';
+import DriverToCustomerMap from '@/components/maps/DriverToCustomerMap';
 import {
   MapPin,
   Phone,
@@ -75,6 +76,7 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAccepting, setIsAccepting] = useState(false);
+  const [showCustomerMap, setShowCustomerMap] = useState(false);
 
   const driverToken = localStorage.getItem('driver_token');
 
@@ -417,14 +419,11 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
               {order.customerLocationLat && order.customerLocationLng && (
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    const url = `https://www.google.com/maps/dir/?api=1&destination=${order.customerLocationLat},${order.customerLocationLng}`;
-                    window.open(url, '_blank');
-                  }}
+                  onClick={() => setShowCustomerMap(true)}
                   className="w-full gap-2 border-green-200 text-green-700 hover:bg-green-50"
                 >
                   <Navigation className="h-4 w-4" />
-                  تتبع موقع العميل على الخرائط
+                  تتبع موقع العميل على الخريطة
                 </Button>
               )}
             </div>
@@ -607,14 +606,11 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
           {order.customerLocationLat && order.customerLocationLng && order.driverId === driverId && (
             <Button
               variant="outline"
-              onClick={() => {
-                const url = `https://www.google.com/maps/dir/?api=1&destination=${order.customerLocationLat},${order.customerLocationLng}`;
-                window.open(url, '_blank');
-              }}
-              className="w-full h-12 gap-2 text-lg"
+              onClick={() => setShowCustomerMap(true)}
+              className="w-full h-12 gap-2 text-lg border-green-300 text-green-700 hover:bg-green-50"
             >
               <Navigation className="h-5 w-5" />
-              التوجيه على الخريطة
+              تتبع موقع العميل على الخريطة
             </Button>
           )}
 
@@ -628,6 +624,18 @@ export default function OrderDetailsPage({ orderId, driverId, onBack }: OrderDet
           </Button>
         </div>
       </main>
+
+      {/* نافذة تتبع موقع العميل التفاعلية */}
+      {showCustomerMap && order.customerLocationLat && order.customerLocationLng && (
+        <DriverToCustomerMap
+          customerLat={parseFloat(order.customerLocationLat)}
+          customerLng={parseFloat(order.customerLocationLng)}
+          customerName={order.customerName}
+          customerPhone={order.customerPhone}
+          deliveryAddress={order.deliveryAddress}
+          onClose={() => setShowCustomerMap(false)}
+        />
+      )}
     </div>
   );
 }
